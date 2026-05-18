@@ -1,0 +1,20 @@
+# sepolicy.rule — ssh-ksu
+# Loaded automatically by KernelSU at boot (no runtime magiskpolicy call needed).
+# Rules are scoped to the 'su' domain (the KernelSU/Magisk root process domain)
+# instead of the wildcard '*' used previously.
+#
+# Why these rules are needed:
+#   Port 22 is a privileged port (<1024). Android's SELinux policy normally
+#   prohibits unprivileged processes from binding it. sshd also needs
+#   sys_chroot for privilege-separation sandboxing.
+
+# --- Capabilities (scoped to su domain, not every domain) ------------------
+allow su self capability { net_bind_service sys_chroot dac_override dac_read_search }
+
+# --- TCP socket operations for sshd ----------------------------------------
+allow su port tcp_socket name_bind
+allow su node tcp_socket node_bind
+allow su self tcp_socket { create bind accept listen read write }
+
+# --- Allow forked sshd child processes to execute under su -----------------
+allow su su process { fork }
