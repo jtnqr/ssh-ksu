@@ -1,0 +1,59 @@
+# sshd_config — OpenSSH daemon configuration for ssh-ksu
+# This file is deployed to /data/adb/ssh/sshd_config on first boot.
+# Editing /data/adb/ssh/sshd_config persists across module updates.
+# -----------------------------------------------------------------------
+
+# --- Network -----------------------------------------------------------
+Port 22
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+# --- Host Keys (persisted outside the module directory) ----------------
+HostKey /data/adb/ssh/ssh_host_rsa_key
+HostKey /data/adb/ssh/ssh_host_ed25519_key
+
+# PID file — matches the path checked in service.sh and action.sh.
+PidFile /data/adb/ssh/sshd.pid
+
+# --- Authentication ----------------------------------------------------
+# Public-key only; passwords disabled for security.
+AuthorizedKeysFile      /data/adb/ssh/authorized_keys
+PasswordAuthentication  no
+ChallengeResponseAuthentication no
+# Root login is required since Android's user model is root-centric.
+PermitRootLogin         yes
+
+# Disable unused, potentially vulnerable auth methods.
+HostbasedAuthentication no
+
+# --- Session Hardening ------------------------------------------------
+StrictModes             yes
+MaxAuthTries            4
+MaxSessions             10
+# Limit unauthenticated connections to prevent DoS via half-open connections.
+# Format: start:rate:full  (drop at rate% once past start, hard-stop at full)
+MaxStartups             3:50:10
+LoginGraceTime          30
+
+# Keep connections alive: server pings client every 60 s, drops after
+# 3 missed replies (~3 min idle timeout).
+ClientAliveInterval     60
+ClientAliveCountMax     3
+
+# Disable features unavailable or unneeded on Android.
+X11Forwarding           no
+AllowAgentForwarding    no
+# Disabled: reduces attack surface (no pivot/proxy capability).
+AllowTcpForwarding      no
+PrintMotd               no
+UseDNS                  no
+
+# --- Subsystems -------------------------------------------------------
+# sftp-server path on AOSP / LineageOS builds.
+Subsystem sftp /system/bin/sftp-server
+
+# --- Logging ----------------------------------------------------------
+# Logs are written via the -E flag in service.sh; set level here for
+# in-band messages (connection errors, auth failures, etc.).
+LogLevel                INFO
