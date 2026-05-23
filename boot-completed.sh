@@ -24,8 +24,9 @@ if [ ! -f "$SSH_DIR/ssh_host_rsa_key" ]; then
     unshare -m sh -c "
         mkdir -p /dev/etc
         mkdir -p /dev/etc_upper /dev/etc_work
+        cp -f \"$SSH_DIR/passwd.tmp\" /dev/etc_upper/passwd 2>/dev/null
         if mount -t overlay overlay -o lowerdir=/system/etc,upperdir=/dev/etc_upper,workdir=/dev/etc_work /system/etc 2>/dev/null; then
-            cp -f \"$SSH_DIR/passwd.tmp\" /system/etc/passwd 2>/dev/null
+            :
         else
             mount -t tmpfs tmpfs /dev/etc
             cp -d -R /system/etc/* /dev/etc/ 2>/dev/null
@@ -69,10 +70,12 @@ if [ "$NEEDS_START" = true ]; then
         mkdir -p /dev/etc
         # Attempt to mount overlayfs (fastest, cleanest)
         mkdir -p /dev/etc_upper /dev/etc_work
+        cp -f \"$SSH_DIR/passwd\" /dev/etc_upper/passwd 2>/dev/null
+        echo \"nameserver 8.8.8.8\" > /dev/etc_upper/resolv.conf
+        echo \"nameserver 1.1.1.1\" >> /dev/etc_upper/resolv.conf
+        
         if mount -t overlay overlay -o lowerdir=/system/etc,upperdir=/dev/etc_upper,workdir=/dev/etc_work /system/etc 2>/dev/null; then
-            cp -f \"$SSH_DIR/passwd\" /system/etc/passwd 2>/dev/null
-            echo \"nameserver 8.8.8.8\" > /system/etc/resolv.conf
-            echo \"nameserver 1.1.1.1\" >> /system/etc/resolv.conf
+            :
         else
             # Fallback to tmpfs + copy (guaranteed to work on all kernels)
             mount -t tmpfs tmpfs /dev/etc

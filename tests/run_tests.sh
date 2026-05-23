@@ -88,11 +88,13 @@ SSH_PASSWD="$TEST_DIR/data_mock/passwd"
 mkdir -p /dev/etc
 mkdir -p /dev/etc_upper /dev/etc_work
 
+# Pre-populate upperdir to avoid post-mount VFS write restrictions
+cp -f "\$SSH_PASSWD" /dev/etc_upper/passwd 2>/dev/null
+echo "nameserver 8.8.8.8" > /dev/etc_upper/resolv.conf
+echo "nameserver 1.1.1.1" >> /dev/etc_upper/resolv.conf
+
 # Attempt overlayfs first
 if mount -t overlay overlay -o lowerdir="\$SYS_ETC",upperdir=/dev/etc_upper,workdir=/dev/etc_work "\$SYS_ETC" 2>/dev/null; then
-    cp -f "\$SSH_PASSWD" "\$SYS_ETC/passwd"
-    echo "nameserver 8.8.8.8" > "\$SYS_ETC/resolv.conf"
-    echo "nameserver 1.1.1.1" >> "\$SYS_ETC/resolv.conf"
     echo "overlay" > /dev/mount_type
 else
     # Fallback to tmpfs + copy

@@ -1,0 +1,78 @@
+# ssh-ksu Agent & Developer Guide
+
+Welcome! This document provides a complete technical map of the `ssh-ksu` KernelSU/Magisk module. It outlines the architecture, hardened design decisions, folder structure, release process, and verification tools.
+
+---
+
+## 1. Architecture Overview
+
+`ssh-ksu` is a premium, hardened OpenSSH (v10.3p1) and Bash (v5.3) server module designed specifically for Android devices utilizing KernelSU or Magisk. Because Android deviates significantly from traditional POSIX environments, this module implements custom system-level workarounds to provide a seamless, secure, and robust interactive shell experience.
+
+### Technical Stack
+* **SSHD**: OpenSSH 10.3p1 (statically compiled for `arm64-v8a`).
+* **Shell**: Bash 5.3 (statically compiled with full `ncurses` and `readline` support).
+* **Environment Sourcing**: Custom interactive login configurations hook via `etc/profile` sourcing `~/.bashrc`.
+* **Verification**: Custom isolated user namespace mounting simulator (`tests/run_tests.sh`).
+
+---
+
+## 2. Hardened Design Decisions
+
+### A. The Mount Namespace & OverlayFS Workaround (`unshare -m`)
+Stock Android systems completely lack `/etc/passwd` and `/etc/resolv.conf`. Standard bind-mounts fail because these destination files do not exist. To address this:
+1. We run the `sshd` daemon inside an isolated mount namespace using `unshare -m`.
+2. Inside this namespace, we mount a writeable **OverlayFS** (or fallback to **tmpfs**) over `/system/etc`.
+3. **Critical Write-Order Fix**: On some Android ROMs and kernels, path-based SELinux or VFS policies block post-mount write operations to overlayfs-mounted directories. To bypass this, we write the virtual dynamic files (`passwd` and `resolv.conf`) to the writeable `upperdir` (e.g., `/dev/etc_upper/passwd`) **before** mounting overlayfs. When overlayfs is mounted, these files are instantly present and fully writeable, avoiding permission errors.
+
+### B. User Home Folder & Concern Separation
+To maintain high security and separate runtime configuration from user state:
+* **System & Keys Storage**: Config files, logs, and system ssh host keys reside in `/data/adb/ssh/`.
+* **User Isolation**: User-specific configuration (interactive scripts, authorized ssh keys) is isolated inside `/data/adb/ssh/home/` (which serves as the root `$HOME` directory).
+* **Automatic Migration**: Any legacy public keys, `.bash_profile`, or `.bashrc` files found in the root directory are automatically migrated to the `/data/adb/ssh/home/` directory during installation and early boot stages.
+
+### C. Flash Longevity & WebUI Protections
+* **Flash Longevity**: The module prevents unnecessary flash wear. It caches intermediate state variables and restricts `sed -i` write operations to actual status changes.
+* **WebUI Security**: Web interface inputs (configured in `webroot/`) are sanitized via global regex whitelisting, numeric-only PID parsing, and strict command-injection guards.
+
+---
+
+## 3. Core Script Components
+
+| File | Purpose | Key Details |
+| :--- | :--- | :--- |
+| **`service.sh`** | Primary boot startup service (non-blocking). | Waits for boot completed, generates short-keygen Ed25519 system host keys, and launches sshd daemon inside `unshare -m`. |
+| **`boot-completed.sh`** | Watchdog and heavy keygen worker. | Executed when boot is complete. Generates RSA 4096 host keys (slow, safe here without timeout) and checks if the service has crashed, restarting it with full mount namespace isolation if needed. |
+| **`action.sh`** | Interactive control script. | Handles KSU/Magisk Manager UI interactions. Supports manual starting, stopping, restarting, and real-time status polling. |
+| **`customize.sh`** | Installation and environment setup. | Handles permissions, overlays, directories creation (`/data/adb/ssh/home`), data migration, and binary unpacking. |
+| **`tests/run_tests.sh`** | QA verification test suite. | Performs shell syntax lints, path alignments, and simulates namespace mounting in an unprivileged user space. |
+| **`pack.sh`** | Module release bundler. | Validates static binaries, runs static verification, stages files, and builds the flashable ZIP. |
+
+---
+
+## 4. QA Verification & Testing
+
+To verify the codebase before any commits, run:
+```bash
+bash tests/run_tests.sh
+```
+This QA suite runs 12 automated checks:
+1. **Syntax Checks**: Validates POSIX/Bash syntax of all core scripts (`service.sh`, `boot-completed.sh`, `action.sh`, `customize.sh`, etc.) using `bash -n`.
+2. **Consistency Checks**: Confirms that module identifier paths and the default shell (`/data/adb/modules/ssh-ksu/system/bin/bash`) are fully aligned across all scripts.
+3. **Mount Simulation**: Runs a virtual mount namespace simulation inside an unprivileged user namespace (`unshare -m -r`) with a custom `tmpfs` over `/dev` to confirm that overlayfs pre-mount writes and tmpfs fallbacks configure `passwd` and `resolv.conf` correctly.
+
+---
+
+## 5. Release & Versioning Policy
+
+### Overwrite Protection
+To enforce strict software configuration rules, `pack.sh` will **never overwrite an existing release ZIP** in the `release/` folder. If a release ZIP for the current version exists, packaging will abort with an error.
+
+### Release Workflow
+Whenever you implement a bug fix, addition, or feature:
+1. **Bump Versioning**: Update the version tag and increment `versionCode` inside [module.prop](file:///home/jtnqr/module/ssh-ksu/module.prop).
+2. **Run Tests**: Execute `bash tests/run_tests.sh` to ensure all QA checks pass.
+3. **Build Package**: Package the flashable module for `arm64-v8a` target:
+   ```bash
+   bash pack.sh --arch arm64-v8a
+   ```
+4. **Verify ZIP**: The new ZIP file will be placed in `release/ssh-ksu-v[version].zip` alongside its `.sha256` checksum.
