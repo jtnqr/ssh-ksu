@@ -47,7 +47,7 @@ fi
 #    RSA 4096 (slow) is handled in boot-completed.sh to avoid timeouts.
 # ---------------------------------------------------------------------------
 if [ ! -f "$SSH_DIR/ssh_host_ed25519_key" ]; then
-    echo "root:x:0:0:root:/data/adb/ssh:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd.tmp"
+    echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd.tmp"
     unshare -m sh -c "
         mkdir -p /dev/etc
         mkdir -p /dev/etc_upper /dev/etc_work
@@ -59,7 +59,7 @@ if [ ! -f "$SSH_DIR/ssh_host_ed25519_key" ]; then
             cp -f \"$SSH_DIR/passwd.tmp\" /dev/etc/passwd 2>/dev/null
             mount --bind /dev/etc /system/etc
         fi
-        HOME=\"$SSH_DIR\" USER=root \"$MODDIR/system/bin/ssh-keygen\" -t ed25519 -f \"$SSH_DIR/ssh_host_ed25519_key\" -N ''
+        HOME=\"$SSH_DIR/home\" USER=root \"$MODDIR/system/bin/ssh-keygen\" -t ed25519 -f \"$SSH_DIR/ssh_host_ed25519_key\" -N ''
     " >> "$SSHD_LOG" 2>&1
     rm -f "$SSH_DIR/passwd.tmp"
     chown 0:0 "$SSH_DIR/ssh_host_ed25519_key"
@@ -84,7 +84,7 @@ fi
 #    SELinux rules are loaded from sepolicy.rule by KernelSU at boot.
 # ---------------------------------------------------------------------------
 # Create a persistent fake passwd file for musl libc
-echo "root:x:0:0:root:/data/adb/ssh:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
+echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
 
 unshare -m sh -c "
     mkdir -p /dev/etc

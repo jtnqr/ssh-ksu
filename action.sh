@@ -22,7 +22,7 @@ start_sshd() {
     if [ ! -f "$SSH_DIR/ssh_host_ed25519_key" ] && [ ! -f "$SSH_DIR/ssh_host_rsa_key" ]; then
         echo "ERROR: No host keys found." ; exit 1
     fi
-    echo "root:x:0:0:root:/data/adb/ssh:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
+    echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
     unshare -m sh -c "
         mkdir -p /dev/etc
         # Attempt to mount overlayfs (fastest, cleanest)
