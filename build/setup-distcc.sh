@@ -195,15 +195,17 @@ if ss -tlnp 2>/dev/null | grep -q ":${REMOTE_DISTCC_PORT}"; then
     sleep 2
 fi
 
-# Start our own distccd bound to all interfaces on our port.
+# Start our own distccd bound to local interfaces on our port.
 nohup distccd \
     --daemon \
     --no-detach \
     --port "$REMOTE_DISTCC_PORT" \
     --listen 0.0.0.0 \
     --jobs "$REMOTE_NPROC" \
-    --allow 0.0.0.0/0 \
-	--make-me-a-botnet \
+    --allow 127.0.0.1 \
+    --allow 192.168.0.0/16 \
+    --allow 10.0.0.0/8 \
+    --allow 172.16.0.0/12 \
     --log-file /tmp/distccd-musl.log \
     --nice 5 \
     >/dev/null 2>&1 &

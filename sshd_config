@@ -51,7 +51,7 @@ UseDNS                  no
 
 # --- Subsystems -------------------------------------------------------
 # sftp-server path on AOSP / LineageOS builds.
-Subsystem sftp /system/bin/sftp-server
+Subsystem sftp internal-sftp
 
 # --- Logging ----------------------------------------------------------
 # Logs are written via the -E flag in service.sh; set level here for
