@@ -18,7 +18,7 @@ PidFile /data/adb/ssh/sshd.pid
 
 # --- Authentication ----------------------------------------------------
 # Public-key only; passwords disabled for security.
-AuthorizedKeysFile      /data/adb/ssh/authorized_keys
+AuthorizedKeysFile      /data/adb/ssh/home/.ssh/authorized_keys
 PasswordAuthentication  no
 ChallengeResponseAuthentication no
 # Root login is required since Android's user model is root-centric.

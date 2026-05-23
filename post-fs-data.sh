@@ -16,16 +16,21 @@ MODDIR="${0%/*}"
 SSH_DIR="/data/adb/ssh"
 
 # ---------------------------------------------------------------------------
-# 1. Create the persistent directory if absent.
+# 1. Create the persistent directories if absent.
 # ---------------------------------------------------------------------------
 [ -d "$SSH_DIR" ] || mkdir -p "$SSH_DIR"
 
 # Strict ownership and permissions: root only, no world/group access.
 chown 0:0  "$SSH_DIR"
 chmod 700  "$SSH_DIR"
-
-# Apply a permissive-enough SELinux context so system processes can access it.
 chcon u:object_r:system_file:s0 "$SSH_DIR"
+
+# Create the user home and .ssh directories
+mkdir -p "$SSH_DIR/home/.ssh"
+chown -R 0:0 "$SSH_DIR/home"
+chmod 700 "$SSH_DIR/home"
+chmod 700 "$SSH_DIR/home/.ssh"
+chcon -R u:object_r:system_file:s0 "$SSH_DIR/home"
 
 
 # ---------------------------------------------------------------------------
@@ -48,15 +53,19 @@ for PUB in "$SSH_DIR/ssh_host_rsa_key.pub" "$SSH_DIR/ssh_host_ed25519_key.pub"; 
 done
 
 # ---------------------------------------------------------------------------
-# 4. Create an empty authorized_keys if it doesn't exist yet.
-#    Users drop their public keys here to enable key-based login.
+# 4. Handle authorized_keys path and migration.
+#    Migrates legacy keys to /data/adb/ssh/home/.ssh/authorized_keys
 # ---------------------------------------------------------------------------
-if [ ! -f "$SSH_DIR/authorized_keys" ]; then
-    touch "$SSH_DIR/authorized_keys"
+if [ -f "$SSH_DIR/authorized_keys" ]; then
+    mv "$SSH_DIR/authorized_keys" "$SSH_DIR/home/.ssh/authorized_keys" 2>/dev/null
 fi
-chown 0:0 "$SSH_DIR/authorized_keys"
-chmod 600 "$SSH_DIR/authorized_keys"
-chcon u:object_r:system_file:s0 "$SSH_DIR/authorized_keys"
+
+if [ ! -f "$SSH_DIR/home/.ssh/authorized_keys" ]; then
+    touch "$SSH_DIR/home/.ssh/authorized_keys"
+fi
+chown 0:0 "$SSH_DIR/home/.ssh/authorized_keys"
+chmod 600 "$SSH_DIR/home/.ssh/authorized_keys"
+chcon u:object_r:system_file:s0 "$SSH_DIR/home/.ssh/authorized_keys"
 
 # ---------------------------------------------------------------------------
 # 5. Deploy sshd_config only on first install (preserve user edits later).
@@ -70,11 +79,15 @@ fi
 
 # ---------------------------------------------------------------------------
 # 6. Deploy bash login profile — only on first install (preserve user edits).
-#    bash reads ~/.bash_profile for login shells; $HOME is /data/adb/ssh.
+#    bash reads ~/.bash_profile for login shells; $HOME is /data/adb/ssh/home.
 # ---------------------------------------------------------------------------
-if [ ! -f "$SSH_DIR/.bash_profile" ]; then
-    cp "$MODDIR/etc/profile" "$SSH_DIR/.bash_profile"
-    chown 0:0 "$SSH_DIR/.bash_profile"
-    chmod 644 "$SSH_DIR/.bash_profile"
-    chcon u:object_r:system_file:s0 "$SSH_DIR/.bash_profile"
+if [ -f "$SSH_DIR/.bash_profile" ]; then
+    mv "$SSH_DIR/.bash_profile" "$SSH_DIR/home/.bash_profile" 2>/dev/null
+fi
+
+if [ ! -f "$SSH_DIR/home/.bash_profile" ]; then
+    cp "$MODDIR/etc/profile" "$SSH_DIR/home/.bash_profile"
+    chown 0:0 "$SSH_DIR/home/.bash_profile"
+    chmod 644 "$SSH_DIR/home/.bash_profile"
+    chcon u:object_r:system_file:s0 "$SSH_DIR/home/.bash_profile"
 fi

@@ -20,7 +20,7 @@ KEYGEN="$MODDIR/system/bin/ssh-keygen"
 # ---------------------------------------------------------------------------
 if [ ! -f "$SSH_DIR/ssh_host_rsa_key" ]; then
     echo "[ssh-ksu] boot-completed: generating RSA 4096 host key..." >> "$SSHD_LOG"
-    echo "root:x:0:0:root:/data/adb/ssh:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd.tmp"
+    echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd.tmp"
     unshare -m sh -c "
         mkdir -p /dev/etc
         mkdir -p /dev/etc_upper /dev/etc_work
@@ -32,7 +32,7 @@ if [ ! -f "$SSH_DIR/ssh_host_rsa_key" ]; then
             cp -f \"$SSH_DIR/passwd.tmp\" /dev/etc/passwd 2>/dev/null
             mount --bind /dev/etc /system/etc
         fi
-        HOME=\"$SSH_DIR\" USER=root \"$KEYGEN\" -t rsa -b 4096 -f \"$SSH_DIR/ssh_host_rsa_key\" -N ''
+        HOME=\"$SSH_DIR/home\" USER=root \"$KEYGEN\" -t rsa -b 4096 -f \"$SSH_DIR/ssh_host_rsa_key\" -N ''
     " >> "$SSHD_LOG" 2>&1
     rm -f "$SSH_DIR/passwd.tmp"
     chown 0:0 "$SSH_DIR/ssh_host_rsa_key"
@@ -64,7 +64,7 @@ fi
 if [ "$NEEDS_START" = true ]; then
     echo "[ssh-ksu] boot-completed: sshd not running — starting now." >> "$SSHD_LOG"
     # Create a persistent fake passwd file for musl libc
-    echo "root:x:0:0:root:/data/adb/ssh:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
+    echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
     unshare -m sh -c "
         mkdir -p /dev/etc
         # Attempt to mount overlayfs (fastest, cleanest)
