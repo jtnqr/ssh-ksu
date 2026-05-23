@@ -709,7 +709,7 @@ async function getClients() {
 // ─────────────────────────────────────────────────────────────
 async function updateModuleProp(status, port) {
   const label = status.running ? 'Running' : 'Stopped';
-  const desc  = `OpenSSH server | Port: ${port} | Status: ${label}`;
+  const desc  = `OpenSSH server + bash shell. Port: ${port} | Status: ${label} | Home: /data/adb/ssh/home`;
   if (desc === lastDescription) return; // skip if nothing changed to prevent flash wear!
   const r = await sh(`sed -i "s/^description=.*/description=${desc}/" ${MOD_DIR}/module.prop`);
   if (r.ok || r.errno === 0) {
