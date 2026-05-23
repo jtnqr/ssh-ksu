@@ -27,16 +27,6 @@ chmod 700  "$SSH_DIR"
 # Apply a permissive-enough SELinux context so system processes can access it.
 chcon u:object_r:system_file:s0 "$SSH_DIR"
 
-# ---------------------------------------------------------------------------
-# 2. Privilege-separation sandbox directory.
-#    Required for UsePrivilegeSeparation yes in sshd_config.
-#    Compiled with --without-privsep-path so sshd won't chroot here,
-#    but the directory must exist for the monitor process.
-# ---------------------------------------------------------------------------
-mkdir -p "$SSH_DIR/empty"
-chown 0:0  "$SSH_DIR/empty"
-chmod 711  "$SSH_DIR/empty"
-chcon u:object_r:system_file:s0 "$SSH_DIR/empty"
 
 # ---------------------------------------------------------------------------
 # 3. Harden existing host key permissions (no-op on first boot).

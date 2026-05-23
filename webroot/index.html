@@ -629,11 +629,15 @@ function setButtonLoading(btn, loading) {
 // ─────────────────────────────────────────────────────────────
 // SSH status & info
 // ─────────────────────────────────────────────────────────────
+let lastDescription = '';
+
 async function getStatus() {
   const pidR = await sh(`cat ${PID_FILE} 2>/dev/null`);
   if (!pidR.ok || !pidR.out) return { running: false, pid: null };
-  const procR = await sh(`[ -d /proc/${pidR.out} ] && echo yes`);
-  return { running: procR.out === 'yes', pid: pidR.out };
+  const cleanPid = parseInt(pidR.out.trim(), 10);
+  if (isNaN(cleanPid)) return { running: false, pid: null };
+  const procR = await sh(`[ -d /proc/${cleanPid} ] && echo yes`);
+  return { running: procR.out === 'yes', pid: cleanPid };
 }
 
 async function getPort() {
@@ -643,12 +647,14 @@ async function getPort() {
 
 async function getUptime(pid) {
   if (!pid) return '—';
+  const cleanPid = parseInt(String(pid).trim(), 10);
+  if (isNaN(cleanPid)) return '—';
   // /proc/uptime → seconds since boot (field 1)
   // /proc/<pid>/stat → field 22 = process starttime in clock ticks since boot
   // uptime_secs - (starttime_ticks / CLK_TCK) = process age in seconds
   const r = await sh(
     `awk '{print $1}' /proc/uptime 2>/dev/null && ` +
-    `awk '{print $22}' /proc/${pid}/stat 2>/dev/null && ` +
+    `awk '{print $22}' /proc/${cleanPid}/stat 2>/dev/null && ` +
     `getconf CLK_TCK 2>/dev/null || echo 100`
   );
   if (!r.ok || !r.out) return '—';
@@ -704,7 +710,11 @@ async function getClients() {
 async function updateModuleProp(status, port) {
   const label = status.running ? 'Running' : 'Stopped';
   const desc  = `OpenSSH server | Port: ${port} | Status: ${label}`;
-  await sh(`sed -i "s/^description=.*/description=${desc}/" ${MOD_DIR}/module.prop`);
+  if (desc === lastDescription) return; // skip if nothing changed to prevent flash wear!
+  const r = await sh(`sed -i "s/^description=.*/description=${desc}/" ${MOD_DIR}/module.prop`);
+  if (r.ok || r.errno === 0) {
+    lastDescription = desc;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -918,6 +928,10 @@ async function loadFile(name) {
 }
 
 async function saveFile() {
+  if (activeFile !== 'sshd_config' && activeFile !== 'authorized_keys') {
+    toast('Save failed: Invalid file selection');
+    return;
+  }
   const btn = document.getElementById('btn-save');
   const status = document.getElementById('save-status');
   setButtonLoading(btn, true);
