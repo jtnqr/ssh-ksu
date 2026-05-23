@@ -241,8 +241,12 @@ echo ""
 # ---------------------------------------------------------------------------
 mkdir -p "$RELEASE_DIR"
 
-# Remove stale ZIP if it exists (re-pack flow)
-[ -f "$ZIP_PATH" ] && rm -f "$ZIP_PATH"
+# Ensure we do not overwrite an already built ZIP (enforce version increments)
+if [ -f "$ZIP_PATH" ]; then
+    echo "[ERROR] Release zip already exists: $ZIP_PATH"
+    echo "        Please bump the version/versionCode in module.prop before packing a new release."
+    exit 1
+fi
 
 echo "[ZIP] Creating $ZIP_NAME..."
 cd "$STAGE_DIR"
