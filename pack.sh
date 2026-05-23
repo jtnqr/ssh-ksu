@@ -80,7 +80,7 @@ echo ""
 validate_binaries() {
     local ABI="$1"
     local MISSING=0
-    for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server; do
+    for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server bash; do
         local BIN_PATH="$BUILD_DIR/out/$ABI/$BIN"
         if [ ! -f "$BIN_PATH" ]; then
             echo "[ERROR] Missing binary: $BIN_PATH"
@@ -119,6 +119,8 @@ REQUIRED_FILES=(
     "sshd_config"
     "sepolicy.rule"
 	"webroot/index.html"
+    "etc/profile"
+    "etc/ksu-status"
 )
 
 for F in "${REQUIRED_FILES[@]}"; do
@@ -137,7 +139,7 @@ fi
 
 # Check binaries in build/out/
 for ABI in "${PACK_ABIS[@]}"; do
-    for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server; do
+    for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server bash; do
         BIN_PATH="$BUILD_DIR/out/$ABI/$BIN"
         if [ ! -f "$BIN_PATH" ]; then
             echo "[ERROR] Binary missing from build/out/$ABI/: $BIN"
@@ -168,20 +170,25 @@ install -m 700 "$SCRIPT_DIR/customize.sh"      "$STAGE_DIR/customize.sh"
 install -m 600 "$SCRIPT_DIR/sshd_config"       "$STAGE_DIR/sshd_config"
 install -m 644 "$SCRIPT_DIR/sepolicy.rule"     "$STAGE_DIR/sepolicy.rule"
 
+# ── Scripts & Configs ──────────────────────────────────────────────────────
+mkdir -p "$STAGE_DIR/etc"
+install -m 644 "$SCRIPT_DIR/etc/profile"       "$STAGE_DIR/etc/profile"
+
 # ── Binaries ───────────────────────────────────────────────────────────────
 mkdir -p "$STAGE_DIR/system/bin"
+install -m 755 "$SCRIPT_DIR/etc/ksu-status"    "$STAGE_DIR/system/bin/ksu-status"
 
 if [ "$ARCH_FILTER" = "all" ]; then
     # Fat zip: put in custom_bin/ folders to be extracted by customize.sh
     for ABI in "${PACK_ABIS[@]}"; do
         mkdir -p "$STAGE_DIR/custom_bin/$ABI"
-        for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server; do
+        for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server bash; do
             install -m 755 "$BUILD_DIR/out/$ABI/$BIN" "$STAGE_DIR/custom_bin/$ABI/$BIN"
         done
     done
 else
     # Single arch zip: put directly in system/bin
-    for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server; do
+    for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server bash; do
         install -m 755 "$BUILD_DIR/out/$ARCH_FILTER/$BIN" "$STAGE_DIR/system/bin/$BIN"
     done
 fi
@@ -210,7 +217,7 @@ BUILD_META="$STAGE_DIR/build_info.txt"
     echo "Binary sizes:"
     for ABI in "${PACK_ABIS[@]}"; do
         echo "  [$ABI]"
-        for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server; do
+        for BIN in sshd sshd-session sshd-auth ssh-keygen rsync sftp-server bash; do
             STAGE_BIN=""
             if [ "$ARCH_FILTER" = "all" ]; then
                 STAGE_BIN="$STAGE_DIR/custom_bin/$ABI/$BIN"

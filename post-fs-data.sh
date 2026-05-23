@@ -77,3 +77,14 @@ if [ ! -f "$SSH_DIR/sshd_config" ]; then
     chmod 600 "$SSH_DIR/sshd_config"
     chcon u:object_r:system_file:s0 "$SSH_DIR/sshd_config"
 fi
+
+# ---------------------------------------------------------------------------
+# 6. Deploy bash login profile — only on first install (preserve user edits).
+#    bash reads ~/.bash_profile for login shells; $HOME is /data/adb/ssh.
+# ---------------------------------------------------------------------------
+if [ ! -f "$SSH_DIR/.bash_profile" ]; then
+    cp "$MODDIR/etc/profile" "$SSH_DIR/.bash_profile"
+    chown 0:0 "$SSH_DIR/.bash_profile"
+    chmod 644 "$SSH_DIR/.bash_profile"
+    chcon u:object_r:system_file:s0 "$SSH_DIR/.bash_profile"
+fi

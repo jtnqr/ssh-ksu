@@ -39,6 +39,8 @@ OPENSSH_VERSION="10.3p1"
 RSYNC_VERSION="3.4.2"
 ZLIB_VERSION="1.3.2"
 POPT_VERSION="1.19"
+NCURSES_VERSION="6.4"
+BASH_VERSION="5.3"
 
 # ---------------------------------------------------------------------------
 # ② Source URLs
@@ -48,6 +50,8 @@ OPENSSH_URL="https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-${OPEN
 RSYNC_URL="https://download.samba.org/pub/rsync/src/rsync-${RSYNC_VERSION}.tar.gz"
 ZLIB_URL="https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz"
 POPT_URL="http://ftp.rpm.org/popt/releases/popt-1.x/popt-${POPT_VERSION}.tar.gz"
+NCURSES_URL="https://ftp.gnu.org/pub/gnu/ncurses/ncurses-${NCURSES_VERSION}.tar.gz"
+BASH_URL="https://ftp.gnu.org/gnu/bash/bash-${BASH_VERSION}.tar.gz"
 
 # Pre-built musl cross-compilers from musl.cc
 MUSL_CC_BASE="https://github.com/cross-tools/musl-cross/releases/download/20250929"
@@ -147,9 +151,11 @@ setup_toolchain() {
 echo "=== Fetching sources ==="
 fetch "$OPENSSL_URL" "$SRC_DIR/openssl-${OPENSSL_VERSION}.tar.gz"
 fetch "$OPENSSH_URL" "$SRC_DIR/openssh-${OPENSSH_VERSION}.tar.gz"
-fetch "$RSYNC_URL" "$SRC_DIR/rsync-${RSYNC_VERSION}.tar.gz"
+fetch "$RSYNC_URL"   "$SRC_DIR/rsync-${RSYNC_VERSION}.tar.gz"
 fetch "$ZLIB_URL"    "$SRC_DIR/zlib-${ZLIB_VERSION}.tar.gz"
 fetch "$POPT_URL"    "$SRC_DIR/popt-${POPT_VERSION}.tar.gz"
+fetch "$NCURSES_URL" "$SRC_DIR/ncurses-${NCURSES_VERSION}.tar.gz"
+fetch "$BASH_URL"    "$SRC_DIR/bash-${BASH_VERSION}.tar.gz"
 echo ""
 
 # =============================================================================
@@ -218,10 +224,13 @@ EOF
     OPENSSL_LIBDIR="$(find "$OPENSSL_INST" -name "libcrypto.a" -printf '%h' -quit)"
     local ZLIB_INST="$WORK_DIR/zlib-install"
 	local POPT_INST="$WORK_DIR/popt-install"
+	local NCURSES_INST="$WORK_DIR/ncurses-install"
     build_zlib "$ABI" "$WORK_DIR" "$ZLIB_INST" "$ABI_CFLAGS"
 	build_popt "$ABI" "$WORK_DIR" "$POPT_INST" "$ABI_CFLAGS"
+	build_ncurses "$ABI" "$WORK_DIR" "$NCURSES_INST" "$ABI_CFLAGS"
     build_openssh "$ABI" "$WORK_DIR" "$OPENSSL_INST" "$OPENSSL_LIBDIR" "$ZLIB_INST" "$ABI_CFLAGS"
     build_rsync   "$ABI" "$WORK_DIR" "$POPT_INST" "$ABI_CFLAGS"
+    build_bash    "$ABI" "$WORK_DIR" "$NCURSES_INST" "$ABI_CFLAGS"
 
 	echo ""
 	log "All binaries for $ABI:"
@@ -386,6 +395,9 @@ build_openssh() {
 	log "[OPENSSH] Configuring for $TRIPLE..."
 	cd "$OPENSSH_SRC"
 
+	# Force bash as the default login shell, ignoring Android's /etc/passwd
+	sed -i 's|copy->pw_shell = xstrdup(pw->pw_shell == NULL ? "" : pw->pw_shell);|copy->pw_shell = xstrdup("/data/adb/modules/ssh-ksu/system/bin/bash");|' misc.c
+
 	# musl provides full POSIX libc — no stubs, no shims, no ac_cv overrides.
 	# -Os:   size-optimised (smaller = faster mmap load on device)
 	# -fno-lto is mandatory: GCC 15.x lto-wrapper has an ICE (get_token /
@@ -514,6 +526,107 @@ build_rsync() {
 }
 
 # =============================================================================
+#  STAGE 6 — bash (interactive login shell for SSH sessions)
+#  --without-bash-malloc: Android's /proc/sys/vm layout makes sbrk unreliable;
+#  using the system allocator (musl's) is safer and smaller.
+#  --disable-nls: strips locale/gettext deps, ~200 KB saving.
+#  --without-curses: no readline/terminfo needed for a minimal login shell.
+# =============================================================================
+# =============================================================================
+#  STAGE 5.5 — ncurses (static libncurses, for bash readline)
+# =============================================================================
+build_ncurses() {
+    local ABI="$1" WORK_DIR="$2" NCURSES_INST="$3" ABI_CFLAGS="$4"
+    local TRIPLE
+    TRIPLE="$(abi_to_triple "$ABI")"
+
+    if [ -f "$NCURSES_INST/lib/libncurses.a" ] || [ -f "$NCURSES_INST/lib/libncursesw.a" ]; then
+        log "[NCURSES] Already built — skipping."
+        return 0
+    fi
+
+    local NCURSES_SRC="$WORK_DIR/ncurses-${NCURSES_VERSION}"
+    [ -d "$NCURSES_SRC" ] || tar -xf "$SRC_DIR/ncurses-${NCURSES_VERSION}.tar.gz" -C "$WORK_DIR"
+
+    log "[NCURSES] Configuring for $TRIPLE..."
+    cd "$NCURSES_SRC"
+
+    CFLAGS="${ABI_CFLAGS} -Os -ffunction-sections -fdata-sections -fstack-protector-strong" \
+    LDFLAGS="-static" \
+    ./configure \
+        -C \
+        --host="$TRIPLE" \
+        --build="$(gcc -dumpmachine)" \
+        --prefix="$NCURSES_INST" \
+        --disable-shared \
+        --enable-static \
+        --without-ada \
+        --without-tests \
+        --without-debug \
+        --without-cxx-binding \
+        --without-progs \
+        --enable-widec \
+        --with-normal \
+        --enable-pc-files \
+        --with-pkg-config-libdir="$NCURSES_INST/lib/pkgconfig"
+
+    log "[NCURSES] Building..."
+    make -j"$MAKE_JOBS" $MAKE_V
+    make $MAKE_V install
+
+    log "[NCURSES] libncursesw.a: $(du -sh "$NCURSES_INST/lib/libncursesw.a" | cut -f1)"
+    cd "$SCRIPT_DIR"
+}
+
+# =============================================================================
+#  STAGE 6 — bash (interactive login shell for SSH sessions)
+#  --without-bash-malloc: Android's /proc/sys/vm layout makes sbrk unreliable;
+#  using the system allocator (musl's) is safer and smaller.
+#  --disable-nls: strips locale/gettext deps, ~200 KB saving.
+#  --without-curses: no readline/terminfo needed for a minimal login shell.
+# =============================================================================
+build_bash() {
+	local ABI="$1" WORK_DIR="$2" NCURSES_INST="$3" ABI_CFLAGS="$4"
+	local TRIPLE
+	TRIPLE="$(abi_to_triple "$ABI")"
+
+	local BASH_SRC="$WORK_DIR/bash-${BASH_VERSION}"
+	local BASH_OUT="$OUT_DIR/$ABI/bash"
+
+	if [ -f "$BASH_OUT" ]; then
+		log "[BASH]   Already built — skipping."
+		return 0
+	fi
+
+	[ -d "$BASH_SRC" ] || tar -xf "$SRC_DIR/bash-${BASH_VERSION}.tar.gz" -C "$WORK_DIR"
+
+	log "[BASH]   Configuring for $TRIPLE with curses..."
+	cd "$BASH_SRC"
+
+	CFLAGS="${ABI_CFLAGS} -Os -ffunction-sections -fdata-sections -fstack-protector-strong -std=gnu89 -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types -I$NCURSES_INST/include -I$NCURSES_INST/include/ncursesw" \
+	CC_FOR_BUILD="gcc -std=gnu89 -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types" \
+	LDFLAGS="-static -Wl,--gc-sections -L$NCURSES_INST/lib" \
+	./configure \
+		-C \
+		--host="$TRIPLE" \
+		--build="$(gcc -dumpmachine)" \
+		--without-bash-malloc \
+		--disable-nls \
+		--disable-rpath \
+		--with-curses \
+		--prefix=/system
+
+	log "[BASH]   Building (jobs=$MAKE_JOBS)..."
+	make -j"$MAKE_JOBS" $MAKE_V
+
+	"$STRIP" --strip-all bash 2>/dev/null || true
+	cp bash "$BASH_OUT"
+
+	log "[BASH]   bash: $(du -sh "$BASH_OUT" | cut -f1)"
+	cd "$SCRIPT_DIR"
+}
+
+# =============================================================================
 #  ENTRY POINT
 # =============================================================================
 ABIS=()
@@ -522,17 +635,26 @@ all) ABIS=(arm64-v8a x86_64) ;;
 arm64) ABIS=(arm64-v8a) ;;
 x86_64) ABIS=(x86_64) ;;
 clean)
-	log "Cleaning build artefacts..."
-	[ -d "$BUILD_DIR" ] && chmod -R u+w "$BUILD_DIR" 2>/dev/null || true
-	[ -d "$OUT_DIR" ] && chmod -R u+w "$OUT_DIR" 2>/dev/null || true
-	rm -rf "$BUILD_DIR/arm64-v8a" "$BUILD_DIR/x86_64" "$OUT_DIR"
-	log "Done."
-	exit 0
-	;;
+    log "Cleaning build artefacts..."
+    [ -d "$BUILD_DIR" ] && chmod -R u+w "$BUILD_DIR" 2>/dev/null || true
+    [ -d "$OUT_DIR" ] && chmod -R u+w "$OUT_DIR" 2>/dev/null || true
+    rm -rf "$BUILD_DIR/arm64-v8a" "$BUILD_DIR/x86_64" "$OUT_DIR"
+    log "Done."
+    exit 0
+    ;;
+cleanall)
+    log "Purging all local builds, config caches, and toolchain artifacts..."
+    rm -rf .build/ out/ release/ config.cache config.status build/distcc.env
+    if command -v ccache >/dev/null 2>&1; then
+        ccache -C
+    fi
+    log "Done."
+    exit 0
+    ;;
 *)
-	echo "Usage: $0 {all|arm64|x86_64|clean}"
-	exit 1
-	;;
+    echo "Usage: $0 {all|arm64|x86_64|clean|cleanall}"
+    exit 1
+    ;;
 esac
 
 for ABI in "${ABIS[@]}"; do

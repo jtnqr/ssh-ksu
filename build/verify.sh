@@ -17,13 +17,14 @@ check_abi() {
     local KEYGEN="$OUT_DIR/$ABI/ssh-keygen"
     local RSYNC="$OUT_DIR/$ABI/rsync"
     local SFTP="$OUT_DIR/$ABI/sftp-server"
+	local BASH="$OUT_DIR/$ABI/bash"
     local PASS=0 FAIL=0
 
     echo ""
     echo "=== Verifying $ABI ==="
 
     # 1. Files exist
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
         if [ -f "$BIN" ]; then
             echo "[PASS] Exists: $(basename "$BIN")"
             PASS=$((PASS+1))
@@ -34,7 +35,7 @@ check_abi() {
     done
 
     # 2. ELF architecture check
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
         [ ! -f "$BIN" ] && continue
         INFO="$(file "$BIN")"
         case "$ABI" in
@@ -60,7 +61,7 @@ check_abi() {
     done
 
     # 3. Static linkage check (critical — dynamic bins will fail on device)
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
         [ ! -f "$BIN" ] && continue
         if file "$BIN" | grep -q "statically linked"; then
             echo "[PASS] Statically linked: $(basename "$BIN")"
@@ -73,7 +74,7 @@ check_abi() {
     done
 
     # 4. No Termux/non-system RPATH
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
         [ ! -f "$BIN" ] && continue
         if readelf -d "$BIN" 2>/dev/null | grep -qiE "(RPATH|RUNPATH)"; then
             RPATH="$(readelf -d "$BIN" | grep -iE "(RPATH|RUNPATH)")"
@@ -87,7 +88,7 @@ check_abi() {
     done
 
     # 5. File size sanity (sshd should be >500KB after static link)
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
         [ ! -f "$BIN" ] && continue
         SIZE="$(stat -c%s "$BIN" 2>/dev/null || stat -f%z "$BIN")"
         if [ "$SIZE" -gt 524288 ]; then

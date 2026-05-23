@@ -1,0 +1,26 @@
+# /data/adb/ssh/profile — bash login profile for SSH sessions
+# Deployed on first install by post-fs-data.sh.
+# Edit freely; updates to the module will not overwrite this file.
+
+# ---------------------------------------------------------------------------
+# Path
+# ---------------------------------------------------------------------------
+export PATH=/system/bin:/system/xbin:/data/adb/ssh/bin:$PATH
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+export HOME=/data/adb/ssh
+export TERM=${TERM:-xterm-256color}
+export HISTFILE="$HOME/.bash_history"
+export HISTSIZE=1000
+
+# ---------------------------------------------------------------------------
+# Prompt
+# ---------------------------------------------------------------------------
+PS1='\[\033[1;32m\]root@android\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]# '
+
+# ---------------------------------------------------------------------------
+# Device status on login
+# ---------------------------------------------------------------------------
+[ -x /system/bin/ksu-status ] && /system/bin/ksu-status

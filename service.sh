@@ -47,10 +47,17 @@ fi
 #    RSA 4096 (slow) is handled in boot-completed.sh to avoid timeouts.
 # ---------------------------------------------------------------------------
 if [ ! -f "$SSH_DIR/ssh_host_ed25519_key" ]; then
-    echo "root:x:0:0:root:/data/adb/ssh:/system/bin/sh" > "$SSH_DIR/passwd.tmp"
+    echo "root:x:0:0:root:/data/adb/ssh:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd.tmp"
     unshare -m sh -c "
-        if [ -f /etc/passwd ]; then
-            mount --bind \"$SSH_DIR/passwd.tmp\" /etc/passwd 2>/dev/null
+        mkdir -p /dev/etc
+        mkdir -p /dev/etc_upper /dev/etc_work
+        if mount -t overlay overlay -o lowerdir=/system/etc,upperdir=/dev/etc_upper,workdir=/dev/etc_work /system/etc 2>/dev/null; then
+            cp -f \"$SSH_DIR/passwd.tmp\" /system/etc/passwd 2>/dev/null
+        else
+            mount -t tmpfs tmpfs /dev/etc
+            cp -d -R /system/etc/* /dev/etc/ 2>/dev/null
+            cp -f \"$SSH_DIR/passwd.tmp\" /dev/etc/passwd 2>/dev/null
+            mount --bind /dev/etc /system/etc
         fi
         HOME=\"$SSH_DIR\" USER=root \"$MODDIR/system/bin/ssh-keygen\" -t ed25519 -f \"$SSH_DIR/ssh_host_ed25519_key\" -N ''
     " >> "$SSHD_LOG" 2>&1
@@ -77,12 +84,26 @@ fi
 #    SELinux rules are loaded from sepolicy.rule by KernelSU at boot.
 # ---------------------------------------------------------------------------
 # Create a persistent fake passwd file for musl libc
-echo "root:x:0:0:root:/data/adb/ssh:/system/bin/sh" > "$SSH_DIR/passwd"
+echo "root:x:0:0:root:/data/adb/ssh:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
 
 unshare -m sh -c "
-    if [ -f /etc/passwd ]; then
-        mount --bind \"$SSH_DIR/passwd\" /etc/passwd 2>/dev/null
+    mkdir -p /dev/etc
+    # Attempt to mount overlayfs (fastest, cleanest)
+    mkdir -p /dev/etc_upper /dev/etc_work
+    if mount -t overlay overlay -o lowerdir=/system/etc,upperdir=/dev/etc_upper,workdir=/dev/etc_work /system/etc 2>/dev/null; then
+        cp -f \"$SSH_DIR/passwd\" /system/etc/passwd 2>/dev/null
+        echo \"nameserver 8.8.8.8\" > /system/etc/resolv.conf
+        echo \"nameserver 1.1.1.1\" >> /system/etc/resolv.conf
+    else
+        # Fallback to tmpfs + copy (guaranteed to work on all kernels)
+        mount -t tmpfs tmpfs /dev/etc
+        cp -d -R /system/etc/* /dev/etc/ 2>/dev/null
+        cp -f \"$SSH_DIR/passwd\" /dev/etc/passwd 2>/dev/null
+        echo \"nameserver 8.8.8.8\" > /dev/etc/resolv.conf
+        echo \"nameserver 1.1.1.1\" >> /dev/etc/resolv.conf
+        mount --bind /dev/etc /system/etc
     fi
+
     mkdir -p /dev/empty
     chown 0:0 /dev/empty 2>/dev/null
     chmod 700 /dev/empty 2>/dev/null
