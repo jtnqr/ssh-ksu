@@ -22,11 +22,14 @@ rsync -avz --delete \
     --exclude='build/distcc.env*' \
     "$PROJECT_ROOT/" "${REMOTE_HOST}:${REMOTE_DIR}/"
 
-echo "[2/4] Executing remote optimized native build..."
+# Capture any arguments passed to the script, default to 'all' if none are provided
+BUILD_TARGET="${@:-all}"
+
+echo "[2/4] Executing remote command: build.sh $BUILD_TARGET"
 ssh "$REMOTE_HOST" "
     cd ${REMOTE_DIR}
     rm -f build/distcc.env 2>/dev/null || true
-    time bash build/build.sh all
+    time bash build/build.sh $BUILD_TARGET
 "
 
 echo "[3/4] Creating local output directory..."

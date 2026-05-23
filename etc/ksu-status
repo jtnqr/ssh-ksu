@@ -1,0 +1,10 @@
+#!/system/bin/sh
+# ksu-status — Android device status (battery + thermal)
+# Installed at /system/bin/ksu-status by ssh-ksu module.
+# Safe to call from any POSIX shell; uses only dumpsys + awk.
+
+BATT=$(dumpsys battery 2>/dev/null | grep -E '^ *level:' | awk '{print $2}' | tr -d '\r')
+TEMP=$(dumpsys battery 2>/dev/null | grep -E '^ *temperature:' | awk '{printf "%.1f", $2/10}' | tr -d '\r')
+
+printf '\033[1;34m=== Android Server Status ===\033[0m\n'
+printf 'Battery : %s%% at %s°C\n' "${BATT:-?}" "${TEMP:-?}"

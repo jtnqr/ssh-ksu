@@ -56,6 +56,7 @@ set_perm "$MODPATH/action.sh"        root root 0700 "u:object_r:system_file:s0"
 set_perm "$MODPATH/uninstall.sh"     root root 0700 "u:object_r:system_file:s0"
 set_perm "$MODPATH/module.prop"      root root 0644 "u:object_r:system_file:s0"
 set_perm "$MODPATH/sshd_config"      root root 0600 "u:object_r:system_file:s0"
+set_perm "$MODPATH/etc/profile"      root root 0644 "u:object_r:system_file:s0"
 
 # ---------------------------------------------------------------------------
 # Metamodule notice.
