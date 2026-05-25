@@ -64,7 +64,7 @@ bash tests/run_tests.sh
 This QA suite runs 19 automated checks:
 1. **Syntax Checks**: Validates POSIX/Bash syntax of all core scripts (`service.sh`, `boot-completed.sh`, `action.sh`, `customize.sh`, `uninstall.sh`, and `build/build.sh`) using `bash -n`.
 2. **Consistency Checks**: Confirms that module identifier paths and the default shell (`/data/adb/modules/ssh-ksu/system/bin/bash`) are fully aligned across all scripts.
-3. **Mount Simulation**: Runs a virtual mount namespace simulation inside an unprivileged user namespace (`unshare -m -r`) with a custom `tmpfs` over `/dev` to confirm that overlayfs pre-mount writes and tmpfs fallbacks configure `passwd` and `resolv.conf` correctly.
+3. **Mount Simulation**: Runs a virtual mount namespace simulation. If the environment supports it (via native root or user namespace `unshare -m`), it runs a mock setup using a custom `tmpfs` over `/dev` to confirm that overlayfs pre-mount writes and tmpfs fallbacks configure `passwd` and `resolv.conf` correctly. If `unshare` is restricted by the kernel (e.g., inside restricted unprivileged container environments), the suite automatically issues a warning and falls back to a graceful mock bypass instead of hard-failing the suite.
 
 ---
 
@@ -83,7 +83,7 @@ To ensure maximum security, speed, and reproducibility, the project employs a mo
    ```
 
 ### GitHub Actions Workflow Caching & Safeguards
-* **Early QA Gating**: The workflow executes `tests/run_tests.sh` immediately after dependency installation. This prevents executing lengthy cross-compilations if syntax or configuration tests fail.
+* **Early QA Gating**: The workflow executes `tests/run_tests.sh` under `sudo` immediately after dependency installation. Running under `sudo` allows unprivileged kernel bypasses for testing OverlayFS namespace mounting. If the environment restricts namespaces completely, the script's graceful check bypasses it, preventing pipeline failures due to environment limitations.
 * **Two-Tier Caching**:
   1. **musl Toolchain Cache**: Caches `build/.build/toolchains/` (`musl-toolchains-${{ hashFiles('build/build.sh') }}`) to avoid downloading and extracting the 160MB compilers on each run.
   2. **ccache Compiler Cache**: Caches `~/.cache/ccache` (`ccache-${{ runner.os }}-${{ hashFiles('build/build.sh') }}-${{ github.run_id }}`) so incremental builds are lightning fast.
