@@ -18,13 +18,16 @@ check_abi() {
     local RSYNC="$OUT_DIR/$ABI/rsync"
     local SFTP="$OUT_DIR/$ABI/sftp-server"
 	local BASH="$OUT_DIR/$ABI/bash"
+    local NANO="$OUT_DIR/$ABI/nano"
+    local HTOP="$OUT_DIR/$ABI/htop"
+    local TMUX="$OUT_DIR/$ABI/tmux"
     local PASS=0 FAIL=0
 
     echo ""
     echo "=== Verifying $ABI ==="
 
     # 1. Files exist
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH" "$NANO" "$HTOP" "$TMUX"; do
         if [ -f "$BIN" ]; then
             echo "[PASS] Exists: $(basename "$BIN")"
             PASS=$((PASS+1))
@@ -35,7 +38,7 @@ check_abi() {
     done
 
     # 2. ELF architecture check
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH" "$NANO" "$HTOP" "$TMUX"; do
         [ ! -f "$BIN" ] && continue
         INFO="$(file "$BIN")"
         case "$ABI" in
@@ -61,7 +64,7 @@ check_abi() {
     done
 
     # 3. Static linkage check (critical — dynamic bins will fail on device)
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH" "$NANO" "$HTOP" "$TMUX"; do
         [ ! -f "$BIN" ] && continue
         if file "$BIN" | grep -q "statically linked"; then
             echo "[PASS] Statically linked: $(basename "$BIN")"
@@ -74,7 +77,7 @@ check_abi() {
     done
 
     # 4. No Termux/non-system RPATH
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH" "$NANO" "$HTOP" "$TMUX"; do
         [ ! -f "$BIN" ] && continue
         if readelf -d "$BIN" 2>/dev/null | grep -qiE "(RPATH|RUNPATH)"; then
             RPATH="$(readelf -d "$BIN" | grep -iE "(RPATH|RUNPATH)")"
@@ -87,11 +90,11 @@ check_abi() {
         fi
     done
 
-    # 5. File size sanity (sshd should be >500KB after static link)
-    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH"; do
+    # 5. File size sanity (binaries should be >100KB after static link)
+    for BIN in "$SSHD" "$KEYGEN" "$RSYNC" "$SFTP" "$BASH" "$NANO" "$HTOP" "$TMUX"; do
         [ ! -f "$BIN" ] && continue
         SIZE="$(stat -c%s "$BIN" 2>/dev/null || stat -f%z "$BIN")"
-        if [ "$SIZE" -gt 524288 ]; then
+        if [ "$SIZE" -gt 102400 ]; then
             echo "[PASS] Size OK ($(numfmt --to=iec "$SIZE" 2>/dev/null || echo "${SIZE}B")): $(basename "$BIN")"
             PASS=$((PASS+1))
         else
