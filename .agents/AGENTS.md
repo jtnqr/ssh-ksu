@@ -84,6 +84,7 @@ To ensure maximum security, speed, and reproducibility, the project employs a mo
 
 ### GitHub Actions Workflow Caching & Safeguards
 * **Early QA Gating**: The workflow executes `tests/run_tests.sh` under `sudo` immediately after dependency installation. Running under `sudo` allows unprivileged kernel bypasses for testing OverlayFS namespace mounting. If the environment restricts namespaces completely, the script's graceful check bypasses it, preventing pipeline failures due to environment limitations.
+* **Write Permissions Isolation**: Explicitly configures `permissions: contents: write` at the job level. This grants the `GITHUB_TOKEN` the required write access to dynamically publish release pages, generate changelogs, and attach target ZIP assets, preventing 403 authorization failures on default read-only repositories.
 * **Two-Tier Caching**:
   1. **musl Toolchain Cache**: Caches `build/.build/toolchains/` (`musl-toolchains-${{ hashFiles('build/build.sh') }}`) to avoid downloading and extracting the 160MB compilers on each run.
   2. **ccache Compiler Cache**: Caches `~/.cache/ccache` (`ccache-${{ runner.os }}-${{ hashFiles('build/build.sh') }}-${{ github.run_id }}`) so incremental builds are lightning fast.
