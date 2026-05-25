@@ -41,6 +41,10 @@ ZLIB_VERSION="1.3.2"
 POPT_VERSION="1.19"
 NCURSES_VERSION="6.6"
 BASH_VERSION="5.3"
+LIBEVENT_VERSION="2.1.12-stable"
+TMUX_VERSION="3.6b"
+HTOP_VERSION="3.5.1"
+NANO_VERSION="9.0"
 
 # ---------------------------------------------------------------------------
 # ② Source URLs
@@ -52,6 +56,10 @@ ZLIB_URL="https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz"
 POPT_URL="http://ftp.rpm.org/popt/releases/popt-1.x/popt-${POPT_VERSION}.tar.gz"
 NCURSES_URL="https://ftp.gnu.org/pub/gnu/ncurses/ncurses-${NCURSES_VERSION}.tar.gz"
 BASH_URL="https://ftp.gnu.org/gnu/bash/bash-${BASH_VERSION}.tar.gz"
+LIBEVENT_URL="https://github.com/libevent/libevent/releases/download/release-${LIBEVENT_VERSION}/libevent-${LIBEVENT_VERSION}.tar.gz"
+TMUX_URL="https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
+HTOP_URL="https://github.com/htop-dev/htop/releases/download/${HTOP_VERSION}/htop-${HTOP_VERSION}.tar.xz"
+NANO_URL="https://www.nano-editor.org/dist/v9/nano-${NANO_VERSION}.tar.gz"
 
 # Pre-built musl cross-compilers from musl.cc
 MUSL_CC_BASE="https://github.com/cross-tools/musl-cross/releases/download/20250929"
@@ -156,6 +164,10 @@ fetch "$ZLIB_URL"    "$SRC_DIR/zlib-${ZLIB_VERSION}.tar.gz"
 fetch "$POPT_URL"    "$SRC_DIR/popt-${POPT_VERSION}.tar.gz"
 fetch "$NCURSES_URL" "$SRC_DIR/ncurses-${NCURSES_VERSION}.tar.gz"
 fetch "$BASH_URL"    "$SRC_DIR/bash-${BASH_VERSION}.tar.gz"
+fetch "$LIBEVENT_URL" "$SRC_DIR/libevent-${LIBEVENT_VERSION}.tar.gz"
+fetch "$TMUX_URL"     "$SRC_DIR/tmux-${TMUX_VERSION}.tar.gz"
+fetch "$HTOP_URL"     "$SRC_DIR/htop-${HTOP_VERSION}.tar.xz"
+fetch "$NANO_URL"     "$SRC_DIR/nano-${NANO_VERSION}.tar.gz"
 echo ""
 
 # =============================================================================
@@ -225,12 +237,17 @@ EOF
     local ZLIB_INST="$WORK_DIR/zlib-install"
 	local POPT_INST="$WORK_DIR/popt-install"
 	local NCURSES_INST="$WORK_DIR/ncurses-install"
+	local LIBEVENT_INST="$WORK_DIR/libevent-install"
     build_zlib "$ABI" "$WORK_DIR" "$ZLIB_INST" "$ABI_CFLAGS"
 	build_popt "$ABI" "$WORK_DIR" "$POPT_INST" "$ABI_CFLAGS"
 	build_ncurses "$ABI" "$WORK_DIR" "$NCURSES_INST" "$ABI_CFLAGS"
     build_openssh "$ABI" "$WORK_DIR" "$OPENSSL_INST" "$OPENSSL_LIBDIR" "$ZLIB_INST" "$ABI_CFLAGS"
     build_rsync   "$ABI" "$WORK_DIR" "$POPT_INST" "$ABI_CFLAGS"
     build_bash    "$ABI" "$WORK_DIR" "$NCURSES_INST" "$ABI_CFLAGS"
+    build_nano    "$ABI" "$WORK_DIR" "$NCURSES_INST" "$ABI_CFLAGS"
+    build_htop    "$ABI" "$WORK_DIR" "$NCURSES_INST" "$ABI_CFLAGS"
+    build_libevent "$ABI" "$WORK_DIR" "$LIBEVENT_INST" "$ABI_CFLAGS"
+    build_tmux    "$ABI" "$WORK_DIR" "$NCURSES_INST" "$LIBEVENT_INST" "$ABI_CFLAGS"
 
 	echo ""
 	log "All binaries for $ABI:"
@@ -546,7 +563,8 @@ build_ncurses() {
         mkdir -p "$NCURSES_INST/lib" "$NCURSES_INST/include"
         cd "$NCURSES_INST/lib"
         [ -f libncursesw.a ] && ln -sf libncursesw.a libncurses.a
-        [ -f libtinfow.a ] && ln -sf libtinfow.a libtinfo.a 2>/dev/null || true
+        [ -f libncursesw.a ] && ln -sf libncursesw.a libtinfow.a 2>/dev/null || true
+        [ -f libncurses.a ] && ln -sf libncurses.a libtinfo.a 2>/dev/null || true
         cd "$NCURSES_INST/include"
         [ -d ncursesw ] && ln -sf ncursesw ncurses 2>/dev/null || true
         cd "$SCRIPT_DIR"
@@ -576,7 +594,8 @@ build_ncurses() {
         --enable-widec \
         --with-normal \
         --enable-pc-files \
-        --with-pkg-config-libdir="$NCURSES_INST/lib/pkgconfig"
+        --with-pkg-config-libdir="$NCURSES_INST/lib/pkgconfig" \
+        --with-fallbacks="xterm,xterm-256color,screen,screen-256color,linux,vt100"
 
     log "[NCURSES] Building..."
     make -j"$MAKE_JOBS" $MAKE_V
@@ -585,7 +604,8 @@ build_ncurses() {
     # Create standard non-wide symlinks so configure scripts can find them
     cd "$NCURSES_INST/lib"
     [ -f libncursesw.a ] && ln -sf libncursesw.a libncurses.a
-    [ -f libtinfow.a ] && ln -sf libtinfow.a libtinfo.a 2>/dev/null || true
+    [ -f libncursesw.a ] && ln -sf libncursesw.a libtinfow.a 2>/dev/null || true
+    [ -f libncurses.a ] && ln -sf libncurses.a libtinfo.a 2>/dev/null || true
     
     cd "$NCURSES_INST/include"
     [ -d ncursesw ] && ln -sf ncursesw ncurses 2>/dev/null || true
@@ -639,6 +659,169 @@ build_bash() {
 	cp bash "$BASH_OUT"
 
 	log "[BASH]   bash: $(du -sh "$BASH_OUT" | cut -f1)"
+	cd "$SCRIPT_DIR"
+}
+
+# =============================================================================
+#  STAGE 7 — nano (statically compiled user-friendly text editor)
+# =============================================================================
+build_nano() {
+	local ABI="$1" WORK_DIR="$2" NCURSES_INST="$3" ABI_CFLAGS="$4"
+	local TRIPLE="$(abi_to_triple "$ABI")"
+	local NANO_SRC="$WORK_DIR/nano-${NANO_VERSION}"
+	local NANO_OUT="$OUT_DIR/$ABI/nano"
+
+	if [ -f "$NANO_OUT" ]; then
+		log "[NANO]   Already built — skipping."
+		return 0
+	fi
+
+	[ -d "$NANO_SRC" ] || tar -xf "$SRC_DIR/nano-${NANO_VERSION}.tar.gz" -C "$WORK_DIR"
+
+	log "[NANO]   Configuring for $TRIPLE..."
+	cd "$NANO_SRC"
+
+	CFLAGS="${ABI_CFLAGS} -Os -ffunction-sections -fdata-sections -fstack-protector-strong -I$NCURSES_INST/include -I$NCURSES_INST/include/ncursesw" \
+	LDFLAGS="-static -Wl,--gc-sections -L$NCURSES_INST/lib" \
+	./configure \
+		-C \
+		--host="$TRIPLE" \
+		--build="$(gcc -dumpmachine)" \
+		--disable-nls \
+		--enable-utf8 \
+		--enable-tiny \
+		--with-ncursesw \
+		--prefix=/system
+
+	log "[NANO]   Building (jobs=$MAKE_JOBS)..."
+	make -j"$MAKE_JOBS" $MAKE_V
+
+	"$STRIP" --strip-all src/nano 2>/dev/null || true
+	cp src/nano "$NANO_OUT"
+
+	log "[NANO]   nano: $(du -sh "$NANO_OUT" | cut -f1)"
+	cd "$SCRIPT_DIR"
+}
+
+# =============================================================================
+#  STAGE 8 — htop (statically compiled interactive process viewer)
+# =============================================================================
+build_htop() {
+	local ABI="$1" WORK_DIR="$2" NCURSES_INST="$3" ABI_CFLAGS="$4"
+	local TRIPLE="$(abi_to_triple "$ABI")"
+	local HTOP_SRC="$WORK_DIR/htop-${HTOP_VERSION}"
+	local HTOP_OUT="$OUT_DIR/$ABI/htop"
+
+	if [ -f "$HTOP_OUT" ]; then
+		log "[HTOP]   Already built — skipping."
+		return 0
+	fi
+
+	[ -d "$HTOP_SRC" ] || tar -xf "$SRC_DIR/htop-${HTOP_VERSION}.tar.xz" -C "$WORK_DIR"
+
+	log "[HTOP]   Configuring for $TRIPLE..."
+	cd "$HTOP_SRC"
+
+	CFLAGS="${ABI_CFLAGS} -Os -ffunction-sections -fdata-sections -fstack-protector-strong -I$NCURSES_INST/include -I$NCURSES_INST/include/ncursesw" \
+	LDFLAGS="-static -Wl,--gc-sections -L$NCURSES_INST/lib" \
+	./configure \
+		-C \
+		--host="$TRIPLE" \
+		--build="$(gcc -dumpmachine)" \
+		--disable-shared \
+		--enable-static \
+		--disable-unicode \
+		--prefix=/system
+
+	log "[HTOP]   Building (jobs=$MAKE_JOBS)..."
+	make -j"$MAKE_JOBS" $MAKE_V
+
+	"$STRIP" --strip-all htop 2>/dev/null || true
+	cp htop "$HTOP_OUT"
+
+	log "[HTOP]   htop: $(du -sh "$HTOP_OUT" | cut -f1)"
+	cd "$SCRIPT_DIR"
+}
+
+# =============================================================================
+#  STAGE 9 — libevent (static intermediate dependency for tmux)
+# =============================================================================
+build_libevent() {
+	local ABI="$1" WORK_DIR="$2" LIBEVENT_INST="$3" ABI_CFLAGS="$4"
+	local TRIPLE="$(abi_to_triple "$ABI")"
+	local LIBEVENT_SRC="$WORK_DIR/libevent-${LIBEVENT_VERSION}"
+
+	if [ -f "$LIBEVENT_INST/lib/libevent.a" ]; then
+		log "[LIBEVENT] Already built — skipping."
+		return 0
+	fi
+
+	[ -d "$LIBEVENT_SRC" ] || tar -xf "$SRC_DIR/libevent-${LIBEVENT_VERSION}.tar.gz" -C "$WORK_DIR"
+
+	log "[LIBEVENT] Configuring for $TRIPLE..."
+	cd "$LIBEVENT_SRC"
+
+	CFLAGS="${ABI_CFLAGS} -Os -ffunction-sections -fdata-sections -fstack-protector-strong" \
+	LDFLAGS="-static" \
+	./configure \
+		-C \
+		--host="$TRIPLE" \
+		--build="$(gcc -dumpmachine)" \
+		--prefix="$LIBEVENT_INST" \
+		--disable-shared \
+		--enable-static \
+		--disable-samples \
+		--disable-openssl
+
+	log "[LIBEVENT] Building (jobs=$MAKE_JOBS)..."
+	make -j"$MAKE_JOBS" $MAKE_V
+	make install
+
+	log "[LIBEVENT] libevent.a: $(du -sh "$LIBEVENT_INST/lib/libevent.a" | cut -f1)"
+	cd "$SCRIPT_DIR"
+}
+
+# =============================================================================
+#  STAGE 10 — tmux (statically compiled terminal multiplexer)
+# =============================================================================
+build_tmux() {
+	local ABI="$1" WORK_DIR="$2" NCURSES_INST="$3" LIBEVENT_INST="$4" ABI_CFLAGS="$5"
+	local TRIPLE="$(abi_to_triple "$ABI")"
+	local TMUX_SRC="$WORK_DIR/tmux-${TMUX_VERSION}"
+	local TMUX_OUT="$OUT_DIR/$ABI/tmux"
+
+	if [ -f "$TMUX_OUT" ]; then
+		log "[TMUX]   Already built — skipping."
+		return 0
+	fi
+
+	[ -d "$TMUX_SRC" ] || tar -xf "$SRC_DIR/tmux-${TMUX_VERSION}.tar.gz" -C "$WORK_DIR"
+
+	log "[TMUX]   Configuring for $TRIPLE..."
+	cd "$TMUX_SRC"
+	rm -f config.cache
+
+	CFLAGS="${ABI_CFLAGS} -Os -ffunction-sections -fdata-sections -fstack-protector-strong -DHAVE_FORKPTY -I$NCURSES_INST/include -I$NCURSES_INST/include/ncursesw" \
+	LDFLAGS="-static -Wl,--gc-sections -L$NCURSES_INST/lib -L$LIBEVENT_INST/lib" \
+	LIBEVENT_CFLAGS="-I$LIBEVENT_INST/include" \
+	LIBEVENT_LIBS="-L$LIBEVENT_INST/lib -levent" \
+	NCURSES_CFLAGS="-I$NCURSES_INST/include -I$NCURSES_INST/include/ncursesw" \
+	NCURSES_LIBS="-L$NCURSES_INST/lib -lncursesw" \
+	./configure \
+		-C \
+		--host="$TRIPLE" \
+		--build="$(gcc -dumpmachine)" \
+		--enable-static \
+		--prefix=/system \
+		ac_cv_search_forkpty="none required"
+
+	log "[TMUX]   Building (jobs=$MAKE_JOBS)..."
+	make -j"$MAKE_JOBS" $MAKE_V
+
+	"$STRIP" --strip-all tmux 2>/dev/null || true
+	cp tmux "$TMUX_OUT"
+
+	log "[TMUX]   tmux: $(du -sh "$TMUX_OUT" | cut -f1)"
 	cd "$SCRIPT_DIR"
 }
 

@@ -12,6 +12,7 @@ export PATH=/system/bin:/system/xbin:/data/adb/ssh/bin:$PATH
 # ---------------------------------------------------------------------------
 export HOME=/data/adb/ssh/home
 export TERM=${TERM:-xterm-256color}
+export TERMINFO_DIRS=/system/usr/share/terminfo:$HOME/.terminfo
 export HISTFILE="$HOME/.bash_history"
 export HISTSIZE=1000
 
