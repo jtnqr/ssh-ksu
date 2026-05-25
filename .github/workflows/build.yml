@@ -88,53 +88,29 @@ jobs:
           MOD_VERSION="$(grep '^version=' module.prop | cut -d= -f2)"
           MOD_ID="$(grep '^id=' module.prop | cut -d= -f2)"
           ZIP_NAME="${MOD_ID}-${MOD_VERSION}.zip"
-          CHECKSUM="$(cat release/${ZIP_NAME}.sha256 2>/dev/null || echo 'N/A')"
           echo "version=${MOD_VERSION}"       >> "$GITHUB_OUTPUT"
           echo "zip_name=${ZIP_NAME}"         >> "$GITHUB_OUTPUT"
-          echo "checksum=${CHECKSUM}"         >> "$GITHUB_OUTPUT"
 
       # ── 11. Upload ZIP as workflow artifact (always available) ────────────
       - name: Upload module ZIP artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.meta.outputs.zip_name }}
-          path: |
-            release/${{ steps.meta.outputs.zip_name }}
-            release/${{ steps.meta.outputs.zip_name }}.sha256
+          path: release/${{ steps.meta.outputs.zip_name }}
           retention-days: 90
 
-      # ── 12. Upload x86_64 binaries separately (for testing/embedding) ───
-      - name: Upload x86_64 binaries artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: binaries-x86_64
-          path: build/out/x86_64/
-          retention-days: 30
-
-      # ── 13. Create GitHub Release (only on version tags) ────────────────
+      # ── 12. Create GitHub Release (only on version tags) ────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: "ssh-ksu ${{ steps.meta.outputs.version }}"
+          name: "ssh-ksu v${{ steps.meta.outputs.version }}"
           body: |
-            ## ssh-ksu ${{ steps.meta.outputs.version }}
+            ## ssh-ksu v${{ steps.meta.outputs.version }}
 
             Minimalist OpenSSH + rsync server module for KernelSU/Magisk.
             Runs on Port 22. All configuration lives in `/data/adb/ssh/`.
-
-            ### Binaries (statically compiled from source)
-            | Tool | Version |
-            |------|---------|
-            | OpenSSH | See `build/build.sh` version pin |
-            | OpenSSL | See `build/build.sh` version pin |
-            | rsync   | See `build/build.sh` version pin |
-
-            ### Verification
-            ```
-            SHA-256: ${{ steps.meta.outputs.checksum }}
-            ```
 
             ### Usage
             1. Flash via **KernelSU Manager** or **Magisk Manager**
@@ -145,9 +121,8 @@ jobs:
                adb shell chmod 600 /data/adb/ssh/authorized_keys
                ```
             4. Connect: `ssh root@<device-ip> -p 22`
-          files: |
-            release/${{ steps.meta.outputs.zip_name }}
-            release/${{ steps.meta.outputs.zip_name }}.sha256
+          files: release/${{ steps.meta.outputs.zip_name }}
+          generate_release_notes: true
           draft: false
           prerelease: ${{ contains(steps.meta.outputs.version, 'beta') || contains(steps.meta.outputs.version, 'rc') }}
         env:
