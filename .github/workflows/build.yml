@@ -33,7 +33,7 @@ jobs:
       - name: Run QA test suite
         run: |
           chmod +x tests/run_tests.sh
-          bash tests/run_tests.sh
+          sudo bash tests/run_tests.sh
 
       # ── 4. Cache musl-cross toolchains (saves ~160MB download per run) ────
       - name: Cache musl-cross toolchains
