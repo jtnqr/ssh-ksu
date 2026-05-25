@@ -78,9 +78,9 @@ jobs:
         run: |
           chmod +x pack.sh
           if [ -n "${{ github.event.inputs.version_override }}" ]; then
-            bash pack.sh --version "${{ github.event.inputs.version_override }}"
+            bash pack.sh --version "${{ github.event.inputs.version_override }}" --arch all
           else
-            bash pack.sh
+            bash pack.sh --arch all
           fi
 
       # ── 10. Read release metadata ────────────────────────────────────────
@@ -97,7 +97,7 @@ jobs:
       - name: Upload module ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.meta.outputs.zip_name }}
+          name: ssh-ksu
           path: release/${{ steps.meta.outputs.zip_name }}
           retention-days: 90
 
