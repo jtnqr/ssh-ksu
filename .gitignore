@@ -14,3 +14,9 @@ configure.log
 *.tmp
 *.swp
 .DS_Store
+
+# Agentic & RAG Assets — local developer tools
+.gemini/
+.antigravitycli/
+graphify-out/
+GEMINI.md
