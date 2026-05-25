@@ -16,6 +16,11 @@ SSHD_CONFIG="$SSH_DIR/sshd_config"
 SSHD_LOG="$SSH_DIR/sshd.log"
 SSHD_PID="$SSH_DIR/sshd.pid"
 
+# Helper for unified time-stamped logging
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$SSHD_LOG"
+}
+
 # ---------------------------------------------------------------------------
 # 1. Wait until Android has finished booting and network stack is up.
 #    sys.boot_completed is set to "1" by the framework after all services
@@ -35,7 +40,7 @@ if [ -f "$SSHD_PID" ]; then
     PID="$(cat "$SSHD_PID")"
     # /proc/<pid>/exe is a reliable liveness check without 'ps' flags.
     if [ -d "/proc/$PID" ]; then
-        echo "[ssh-ksu] sshd already running (pid=$PID). Exiting." >> "$SSHD_LOG"
+        log "[ssh-ksu] sshd already running (pid=$PID). Exiting."
         exit 0
     fi
     rm -f "$SSHD_PID"
@@ -60,7 +65,9 @@ if [ ! -f "$SSH_DIR/ssh_host_ed25519_key" ]; then
             cp -f \"$SSH_DIR/passwd.tmp\" /dev/etc/passwd 2>/dev/null
             mount --bind /dev/etc /system/etc
         fi
-        HOME=\"$SSH_DIR/home\" USER=root \"$MODDIR/system/bin/ssh-keygen\" -t ed25519 -f \"$SSH_DIR/ssh_host_ed25519_key\" -N ''
+        HOME=\"$SSH_DIR/home\" USER=root \"$MODDIR/system/bin/ssh-keygen\" -t ed25519 -f \"$SSH_DIR/ssh_host_ed25519_key\" -N '' 2>&1 | while read -r line; do
+            echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] \$line\"
+        done
     " >> "$SSHD_LOG" 2>&1
     rm -f "$SSH_DIR/passwd.tmp"
     chown 0:0 "$SSH_DIR/ssh_host_ed25519_key"
@@ -81,9 +88,35 @@ fi
 #
 #    Flags:
 #      -f  → explicit config path (outside the module, survives updates)
-#      -E  → redirect sshd's own error/info log to a file
+#      -D  → run in foreground to pipe logs with timestamps
 #    SELinux rules are loaded from sepolicy.rule by KernelSU at boot.
 # ---------------------------------------------------------------------------
+# Bulletproof: Ensure home directories exist with correct permissions before starting
+mkdir -p "$SSH_DIR/home/.ssh"
+chown -R 0:0 "$SSH_DIR/home"
+chmod 700 "$SSH_DIR/home"
+chmod 700 "$SSH_DIR/home/.ssh"
+
+# Handle legacy migrations
+if [ -f "$SSH_DIR/authorized_keys" ]; then
+    mv "$SSH_DIR/authorized_keys" "$SSH_DIR/home/.ssh/authorized_keys" 2>/dev/null
+fi
+if [ ! -f "$SSH_DIR/home/.ssh/authorized_keys" ]; then
+    touch "$SSH_DIR/home/.ssh/authorized_keys"
+    chmod 600 "$SSH_DIR/home/.ssh/authorized_keys"
+fi
+
+if [ -f "$SSH_DIR/.bash_profile" ]; then
+    mv "$SSH_DIR/.bash_profile" "$SSH_DIR/home/.bash_profile" 2>/dev/null
+fi
+if [ ! -f "$SSH_DIR/home/.bash_profile" ]; then
+    cp "$MODDIR/etc/profile" "$SSH_DIR/home/.bash_profile"
+    chmod 644 "$SSH_DIR/home/.bash_profile"
+fi
+
+# Update module.prop status to Running
+[ -f "$MODDIR/module.prop" ] && sed -i 's/Status: Stopped/Status: Running/g' "$MODDIR/module.prop"
+
 # Create a persistent fake passwd file for musl libc
 echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
 
@@ -110,7 +143,17 @@ unshare -m sh -c "
     mkdir -p /dev/empty
     chown 0:0 /dev/empty 2>/dev/null
     chmod 700 /dev/empty 2>/dev/null
-    exec \"$SSHD_BIN\" -f \"$SSHD_CONFIG\" -E \"$SSHD_LOG\"
-" >> "$SSHD_LOG" 2>&1
+    exec \"$SSHD_BIN\" -f \"$SSHD_CONFIG\" -D -e 2>&1 | while read -r line; do
+        echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] \$line\"
+    done
+" >> "$SSHD_LOG" 2>&1 &
 
-echo "[ssh-ksu] sshd launched at $(date)" >> "$SSHD_LOG"
+# Wait for process to initialize and write PID fallback
+sleep 1.5
+pid=$(pgrep -f "$SSHD_BIN" 2>/dev/null | head -1)
+if [ -n "$pid" ]; then
+    echo "$pid" > "$SSHD_PID"
+    log "[ssh-ksu] sshd launched successfully (pid=$pid)."
+else
+    log "[ssh-ksu] sshd launched (pid unknown)."
+fi

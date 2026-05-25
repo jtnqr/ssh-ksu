@@ -61,6 +61,32 @@ for script in service.sh boot-completed.sh action.sh; do
     fi
 done
 
+# Verify passwd files home directory structure
+SSHD_HOME_PATH="/data/adb/ssh/home"
+for script in service.sh boot-completed.sh action.sh; do
+    if grep -q "$SSHD_HOME_PATH" "$script"; then
+        log_pass "$script passwd generation uses correct home directory path."
+    else
+        log_fail "$script passwd generation uses incorrect home directory path!"
+    fi
+done
+
+# Verify unified -e standard error logging flag in sshd execution
+for script in service.sh boot-completed.sh action.sh; do
+    if grep -q "SSHD_BIN.*-f.*-D -e" "$script"; then
+        log_pass "$script execution uses unified -e logging flag."
+    else
+        log_fail "$script execution is missing the -e logging flag!"
+    fi
+done
+
+# Verify watchdog startup delay in boot-completed.sh
+if grep -q "sleep 10" boot-completed.sh; then
+    log_pass "boot-completed.sh contains watchdog settle delay."
+else
+    log_fail "boot-completed.sh is missing the watchdog settle delay!"
+fi
+
 # 3. Mount Namespace Workaround (Integration Test in User Namespace)
 log_info "3. Testing mount namespace workaround..."
 # We can simulate the unshare -m namespace execution inside an unprivileged user namespace (-r)

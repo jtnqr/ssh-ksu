@@ -21,4 +21,7 @@ if [ -f "$SSHD_PID" ]; then
     rm -f "$SSHD_PID"
 fi
 
+# Thoroughly terminate all remaining daemon instances and client connections by process name
+pkill sshd 2>/dev/null || true
+
 echo "[ssh-ksu] uninstall: module removed. Keys preserved in $SSH_DIR." >> "$LOG"

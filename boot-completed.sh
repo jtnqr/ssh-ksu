@@ -13,13 +13,18 @@ SSHD_LOG="$SSH_DIR/sshd.log"
 SSHD_PID="$SSH_DIR/sshd.pid"
 KEYGEN="$MODDIR/system/bin/ssh-keygen"
 
+# Helper for unified time-stamped logging
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$SSHD_LOG"
+}
+
 # ---------------------------------------------------------------------------
 # 1. Generate RSA 4096 host key if still missing.
 #    This is done here (not in service.sh) because RSA 4096 keygen can take
 #    5–15 seconds on slow SoCs. boot-completed.sh has no timeout limit.
 # ---------------------------------------------------------------------------
 if [ ! -f "$SSH_DIR/ssh_host_rsa_key" ]; then
-    echo "[ssh-ksu] boot-completed: generating RSA 4096 host key..." >> "$SSHD_LOG"
+    log "[ssh-ksu] boot-completed: generating RSA 4096 host key..."
     echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd.tmp"
     unshare -m sh -c "
         mkdir -p /dev/etc
@@ -33,7 +38,9 @@ if [ ! -f "$SSH_DIR/ssh_host_rsa_key" ]; then
             cp -f \"$SSH_DIR/passwd.tmp\" /dev/etc/passwd 2>/dev/null
             mount --bind /dev/etc /system/etc
         fi
-        HOME=\"$SSH_DIR/home\" USER=root \"$KEYGEN\" -t rsa -b 4096 -f \"$SSH_DIR/ssh_host_rsa_key\" -N ''
+        HOME=\"$SSH_DIR/home\" USER=root \"$KEYGEN\" -t rsa -b 4096 -f \"$SSH_DIR/ssh_host_rsa_key\" -N '' 2>&1 | while read -r line; do
+            echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] \$line\"
+        done
     " >> "$SSHD_LOG" 2>&1
     rm -f "$SSH_DIR/passwd.tmp"
     chown 0:0 "$SSH_DIR/ssh_host_rsa_key"
@@ -44,12 +51,14 @@ if [ ! -f "$SSH_DIR/ssh_host_rsa_key" ]; then
         chmod 644 "$SSH_DIR/ssh_host_rsa_key.pub"
         chcon u:object_r:system_file:s0 "$SSH_DIR/ssh_host_rsa_key.pub"
     }
-    echo "[ssh-ksu] boot-completed: RSA host key generated." >> "$SSHD_LOG"
+    log "[ssh-ksu] boot-completed: RSA host key generated."
 fi
 
 # ---------------------------------------------------------------------------
 # 2. Watchdog: restart sshd if it died after service.sh launched it.
+#    Sleep 10 seconds to allow service.sh to fully settle and start the daemon first.
 # ---------------------------------------------------------------------------
+sleep 10
 NEEDS_START=false
 
 if [ ! -f "$SSHD_PID" ]; then
@@ -63,7 +72,33 @@ else
 fi
 
 if [ "$NEEDS_START" = true ]; then
-    echo "[ssh-ksu] boot-completed: sshd not running — starting now." >> "$SSHD_LOG"
+    log "[ssh-ksu] boot-completed: sshd not running — starting now."
+    # Bulletproof: Ensure home directories exist with correct permissions before starting
+    mkdir -p "$SSH_DIR/home/.ssh"
+    chown -R 0:0 "$SSH_DIR/home"
+    chmod 700 "$SSH_DIR/home"
+    chmod 700 "$SSH_DIR/home/.ssh"
+
+    # Handle legacy migrations
+    if [ -f "$SSH_DIR/authorized_keys" ]; then
+        mv "$SSH_DIR/authorized_keys" "$SSH_DIR/home/.ssh/authorized_keys" 2>/dev/null
+    fi
+    if [ ! -f "$SSH_DIR/home/.ssh/authorized_keys" ]; then
+        touch "$SSH_DIR/home/.ssh/authorized_keys"
+        chmod 600 "$SSH_DIR/home/.ssh/authorized_keys"
+    fi
+
+    if [ -f "$SSH_DIR/.bash_profile" ]; then
+        mv "$SSH_DIR/.bash_profile" "$SSH_DIR/home/.bash_profile" 2>/dev/null
+    fi
+    if [ ! -f "$SSH_DIR/home/.bash_profile" ]; then
+        cp "$MODDIR/etc/profile" "$SSH_DIR/home/.bash_profile"
+        chmod 644 "$SSH_DIR/home/.bash_profile"
+    fi
+
+    # Update module.prop status to Running
+    [ -f "$MODDIR/module.prop" ] && sed -i 's/Status: Stopped/Status: Running/g' "$MODDIR/module.prop"
+
     # Create a persistent fake passwd file for musl libc
     echo "root:x:0:0:root:/data/adb/ssh/home:/data/adb/modules/ssh-ksu/system/bin/bash" > "$SSH_DIR/passwd"
     unshare -m sh -c "
@@ -89,9 +124,20 @@ if [ "$NEEDS_START" = true ]; then
         mkdir -p /dev/empty
         chown 0:0 /dev/empty 2>/dev/null
         chmod 700 /dev/empty 2>/dev/null
-        exec \"$SSHD_BIN\" -f \"$SSHD_CONFIG\" -E \"$SSHD_LOG\"
-    " >> "$SSHD_LOG" 2>&1
-    echo "[ssh-ksu] boot-completed: sshd launched at $(date)" >> "$SSHD_LOG"
+        exec \"$SSHD_BIN\" -f \"$SSHD_CONFIG\" -D -e 2>&1 | while read -r line; do
+            echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] \$line\"
+        done
+    " >> "$SSHD_LOG" 2>&1 &
+
+    # Wait for process to initialize and write PID fallback
+    sleep 1.5
+    pid=$(pgrep -f "$SSHD_BIN" 2>/dev/null | head -1)
+    if [ -n "$pid" ]; then
+        echo "$pid" > "$SSHD_PID"
+        log "[ssh-ksu] boot-completed: sshd launched successfully (pid=$pid)."
+    else
+        log "[ssh-ksu] boot-completed: sshd launched (pid unknown)."
+    fi
 else
-    echo "[ssh-ksu] boot-completed: sshd healthy (pid=$(cat "$SSHD_PID"))." >> "$SSHD_LOG"
+    log "[ssh-ksu] boot-completed: sshd healthy (pid=$(cat "$SSHD_PID" 2>/dev/null))."
 fi
