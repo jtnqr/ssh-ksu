@@ -27,49 +27,51 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential make autoconf automake libtool \
-            perl curl xz-utils unzip zip patch file binutils
+            perl curl xz-utils unzip zip patch file binutils ccache
 
-      # ── 3. Cache NDK download (saves ~700MB bandwidth on repeat runs) ────
-      - name: Cache Android NDK r27d
-        id: cache-ndk
+      # ── 3. Run QA test suite (Fail early to save build minutes) ──────────
+      - name: Run QA test suite
+        run: |
+          chmod +x tests/run_tests.sh
+          bash tests/run_tests.sh
+
+      # ── 4. Cache musl-cross toolchains (saves ~160MB download per run) ────
+      - name: Cache musl-cross toolchains
+        id: cache-toolchains
         uses: actions/cache@v4
         with:
-          path: /opt/android-ndk
-          key: android-ndk-r27d-linux
+          path: build/.build/toolchains
+          key: musl-toolchains-${{ hashFiles('build/build.sh') }}
 
-      - name: Install Android NDK r27d
-        if: steps.cache-ndk.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p /opt/android-ndk
-          curl -fsSL \
-            "https://dl.google.com/android/repository/android-ndk-r27d-linux.zip" \
-            -o /tmp/ndk.zip
-          unzip -q /tmp/ndk.zip -d /opt/android-ndk
-          rm /tmp/ndk.zip
-
-      # ── 4. Cache source tarballs (avoids re-downloading on each run) ─────
+      # ── 5. Cache source tarballs (avoids re-downloading source code) ──────
       - name: Cache source tarballs
         uses: actions/cache@v4
         with:
           path: build/.build/src
           key: sources-${{ hashFiles('build/build.sh') }}
-          # Key tied to build.sh hash — invalidates when version pins change
 
-      # ── 5. Build ─────────────────────────────────────────────────────────
+      # ── 6. Cache compiler objects (ccache for lightning fast compiles) ────
+      - name: Cache compiler objects (ccache)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('build/build.sh') }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ hashFiles('build/build.sh') }}-
+
+      # ── 7. Build ─────────────────────────────────────────────────────────
       - name: Build all ABIs
-        env:
-          ANDROID_NDK_HOME: /opt/android-ndk/android-ndk-r27d
         run: |
           chmod +x build/build.sh
           bash build/build.sh all
 
-      # ── 6. Verify ────────────────────────────────────────────────────────
+      # ── 8. Verify ────────────────────────────────────────────────────────
       - name: Verify binaries
         run: |
           chmod +x build/verify.sh
           bash build/verify.sh all
 
-      # ── 7. Pack module ZIP ───────────────────────────────────────────────
+      # ── 9. Pack module ZIP ───────────────────────────────────────────────
       - name: Pack module ZIP
         run: |
           chmod +x pack.sh
@@ -79,7 +81,7 @@ jobs:
             bash pack.sh
           fi
 
-      # ── 8. Read release metadata ─────────────────────────────────────────
+      # ── 10. Read release metadata ────────────────────────────────────────
       - name: Read release metadata
         id: meta
         run: |
@@ -91,7 +93,7 @@ jobs:
           echo "zip_name=${ZIP_NAME}"         >> "$GITHUB_OUTPUT"
           echo "checksum=${CHECKSUM}"         >> "$GITHUB_OUTPUT"
 
-      # ── 9. Upload ZIP as workflow artifact (always available) ─────────────
+      # ── 11. Upload ZIP as workflow artifact (always available) ────────────
       - name: Upload module ZIP artifact
         uses: actions/upload-artifact@v4
         with:
@@ -101,7 +103,7 @@ jobs:
             release/${{ steps.meta.outputs.zip_name }}.sha256
           retention-days: 90
 
-      # ── 10. Upload x86_64 binaries separately (for testing/embedding) ────
+      # ── 12. Upload x86_64 binaries separately (for testing/embedding) ───
       - name: Upload x86_64 binaries artifact
         uses: actions/upload-artifact@v4
         with:
@@ -109,7 +111,7 @@ jobs:
           path: build/out/x86_64/
           retention-days: 30
 
-      # ── 11. Create GitHub Release (only on version tags) ─────────────────
+      # ── 13. Create GitHub Release (only on version tags) ────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
