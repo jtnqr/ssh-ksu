@@ -1,22 +1,26 @@
 # =============================================================================
-# Dockerfile — ssh-ksu cross-compilation environment
+# Dockerfile — ssh-ksu cross-compilation environment (Hardened & Optimized)
 # =============================================================================
 # Builds a reproducible Linux environment with:
-#   - Android NDK r27d
-#   - All build-time dependencies (perl, autoconf, make, etc.)
+#   - Build-time dependencies (ccache, make, autoconf, perl, etc.)
+#   - Fully pruned unused Android NDK
+#   - Non-root unprivileged container safety
 #
-# Usage (from the ssh-ksu/ root, on Windows with Docker Desktop):
+# Usage (from the ssh-ksu/ root):
 #   docker build -t ssh-ksu-builder -f build/Dockerfile .
-#   docker run --rm -v "${PWD}:/workspace" ssh-ksu-builder bash build/build.sh all
-#
-# On Windows PowerShell, replace ${PWD} with ${PWD}:
 #   docker run --rm -v "${PWD}:/workspace" ssh-ksu-builder bash build/build.sh all
 # =============================================================================
 
 FROM ubuntu:24.04
 
+# Define unprivileged builder user to avoid root privileges
+ARG USER_NAME=builder
+ARG USER_UID=1000
+ARG USER_GID=1000
+
 # ── System packages ─────────────────────────────────────────────────────────
 ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         make \
@@ -35,23 +39,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         python3 \
         git \
+        ccache \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Android NDK r27d ────────────────────────────────────────────────────────
-ENV NDK_VERSION=r27d
-ENV ANDROID_NDK_HOME=/opt/android-ndk/android-ndk-${NDK_VERSION}
+# Set up non-root user and workspace directory
+RUN groupadd -g ${USER_GID} ${USER_NAME} \
+    && useradd -u ${USER_UID} -g ${USER_GID} -m -s /bin/bash ${USER_NAME} \
+    && mkdir -p /workspace \
+    && chown -R ${USER_NAME}:${USER_NAME} /workspace
 
-RUN mkdir -p /opt/android-ndk && \
-    curl -fsSL \
-        "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip" \
-        -o /tmp/ndk.zip && \
-    unzip -q /tmp/ndk.zip -d /opt/android-ndk && \
-    rm /tmp/ndk.zip && \
-    echo "NDK installed at: $ANDROID_NDK_HOME"
+USER ${USER_NAME}
 
-# ── Verify NDK ──────────────────────────────────────────────────────────────
-RUN test -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" || \
-    { echo "NDK verification failed"; exit 1; }
+# Set up compiler cache environment variables
+ENV CCACHE_DIR=/home/${USER_NAME}/.cache/ccache
+RUN mkdir -p ${CCACHE_DIR}
 
 # ── Working directory ───────────────────────────────────────────────────────
 WORKDIR /workspace

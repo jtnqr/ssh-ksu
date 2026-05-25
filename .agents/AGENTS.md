@@ -11,6 +11,8 @@ Welcome! This document provides a complete technical map of the `ssh-ksu` Kernel
 ### Technical Stack
 * **SSHD**: OpenSSH 10.3p1 (statically compiled for `arm64-v8a`).
 * **Shell**: Bash 5.3 (statically compiled with full `ncurses` and `readline` support).
+* **Additional Utilities**: GNU Nano (v9.0), htop (v3.5.1), and tmux (v3.6b) with `libevent` (v2.1.12-stable).
+* **Compilation Environment**: Dedicated, secure `ubuntu:24.04` container utilizing `musl-cross` toolchains dynamically fetched from GitHub. Android NDK is completely pruned to avoid unnecessary bloat.
 * **Environment Sourcing**: Custom interactive login configurations hook via `etc/profile` sourcing `~/.bashrc`.
 * **Verification**: Custom isolated user namespace mounting simulator (`tests/run_tests.sh`).
 
@@ -34,6 +36,10 @@ To maintain high security and separate runtime configuration from user state:
 * **Flash Longevity**: The module prevents unnecessary flash wear. It caches intermediate state variables and restricts `sed -i` write operations to actual status changes.
 * **WebUI Security**: Web interface inputs (configured in `webroot/`) are sanitized via global regex whitelisting, numeric-only PID parsing, and strict command-injection guards.
 
+### D. Hardened Container Compilation
+* **Unprivileged Execution**: The compilation environment in `build/Dockerfile` operates completely under a dedicated unprivileged user (`builder`, UID/GID 1000) rather than standard Docker `root` execution, enforcing robust security and matching typical host system permissions.
+* **NDK Pruning**: All Android NDK dependencies have been completely removed as the compilation utilizes static `musl-cross` toolchains. This optimizes local and remote cache storage and minimizes the attack surface.
+
 ---
 
 ## 3. Core Script Components
@@ -55,14 +61,37 @@ To verify the codebase before any commits, run:
 ```bash
 bash tests/run_tests.sh
 ```
-This QA suite runs 12 automated checks:
-1. **Syntax Checks**: Validates POSIX/Bash syntax of all core scripts (`service.sh`, `boot-completed.sh`, `action.sh`, `customize.sh`, etc.) using `bash -n`.
+This QA suite runs 19 automated checks:
+1. **Syntax Checks**: Validates POSIX/Bash syntax of all core scripts (`service.sh`, `boot-completed.sh`, `action.sh`, `customize.sh`, `uninstall.sh`, and `build/build.sh`) using `bash -n`.
 2. **Consistency Checks**: Confirms that module identifier paths and the default shell (`/data/adb/modules/ssh-ksu/system/bin/bash`) are fully aligned across all scripts.
 3. **Mount Simulation**: Runs a virtual mount namespace simulation inside an unprivileged user namespace (`unshare -m -r`) with a custom `tmpfs` over `/dev` to confirm that overlayfs pre-mount writes and tmpfs fallbacks configure `passwd` and `resolv.conf` correctly.
 
 ---
 
-## 5. Release & Versioning Policy
+## 5. Reproducible Build Environment & CI/CD Pipeline
+
+To ensure maximum security, speed, and reproducibility, the project employs a modern containerized compilation system and GitHub Actions pipeline:
+
+### Local Docker Build
+1. **Build Container Image**:
+   ```bash
+   docker build -t ssh-ksu-builder -f build/Dockerfile .
+   ```
+2. **Compile All Targets**:
+   ```bash
+   docker run --rm -v "${PWD}:/workspace" ssh-ksu-builder bash build/build.sh all
+   ```
+
+### GitHub Actions Workflow Caching & Safeguards
+* **Early QA Gating**: The workflow executes `tests/run_tests.sh` immediately after dependency installation. This prevents executing lengthy cross-compilations if syntax or configuration tests fail.
+* **Two-Tier Caching**:
+  1. **musl Toolchain Cache**: Caches `build/.build/toolchains/` (`musl-toolchains-${{ hashFiles('build/build.sh') }}`) to avoid downloading and extracting the 160MB compilers on each run.
+  2. **ccache Compiler Cache**: Caches `~/.cache/ccache` (`ccache-${{ runner.os }}-${{ hashFiles('build/build.sh') }}-${{ github.run_id }}`) so incremental builds are lightning fast.
+* **Automatic Release Packing**: Fully automates verification checks (`verify.sh`) and outputs checksummed flashable ZIP packages onto workflow artifacts and GitHub Releases.
+
+---
+
+## 6. Release & Versioning Policy
 
 ### Overwrite Protection
 To enforce strict software configuration rules, `pack.sh` will **never overwrite an existing release ZIP** in the `release/` folder. If a release ZIP for the current version exists, packaging will abort with an error.
