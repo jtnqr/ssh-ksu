@@ -93,15 +93,28 @@ To ensure maximum security, speed, and reproducibility, the project employs a mo
 
 ## 6. Release & Versioning Policy
 
+### Version Baseline
+The initial baseline release version is reset explicitly to `1.0.0` with `versionCode=1` inside [module.prop](file:///home/jtnqr/module/ssh-ksu/module.prop).
+
 ### Overwrite Protection
 To enforce strict software configuration rules, `pack.sh` will **never overwrite an existing release ZIP** in the `release/` folder. If a release ZIP for the current version exists, packaging will abort with an error.
 
-### Release Workflow
-Whenever you implement a bug fix, addition, or feature:
-1. **Bump Versioning**: Update the version tag and increment `versionCode` inside [module.prop](file:///home/jtnqr/module/ssh-ksu/module.prop).
-2. **Run Tests**: Execute `bash tests/run_tests.sh` to ensure all QA checks pass.
-3. **Build Package**: Package the flashable module for `arm64-v8a` target:
+### Automated Release Workflow
+Whenever you implement a bug fix, utility addition, or kernel support upgrade, follow this end-to-end automated publishing flow:
+1. **Bump Versioning**: Update the `version` (e.g. `1.1.0`) and increment `versionCode` inside `module.prop`.
+2. **Run Local Tests**: Execute the QA suite locally to ensure all lints and mounting checks pass:
    ```bash
-   bash pack.sh --arch arm64-v8a
+   bash tests/run_tests.sh
    ```
-4. **Verify ZIP**: The new ZIP file will be placed in `release/ssh-ksu-v[version].zip` alongside its `.sha256` checksum.
+3. **Commit Your Changes**: Commit your staged files locally:
+   ```bash
+   git add .
+   git commit -m "release: bump version to 1.1.0"
+   git push origin main
+   ```
+4. **Tag and Push to GitHub**: Apply the semantic versioning tag matching `v*` and push it to kickstart GHA automation:
+   ```bash
+   git tag v1.1.0
+   git push origin v1.1.0
+   ```
+5. **Automated GHA Publishing**: The push triggers the GHA compiler runner, which performs an early QA test gating run, builds all target architectures in a single pass, packages the final unified "fat" module ZIP, automatically generates standard changelog release notes, and attaches the flat ZIP archive directly as a GitHub Release asset.
