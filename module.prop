@@ -1,6 +1,6 @@
 id=ssh-ksu
 name=SSH-KSU
-version=v1.2.1
-versionCode=4
+version=v1.2.3
+versionCode=6
 author=Jtnqr
 description=OpenSSH server + bash shell. Port: 22 | Status: Stopped | Home: /data/adb/ssh/home

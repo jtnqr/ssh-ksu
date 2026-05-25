@@ -39,7 +39,7 @@ OPENSSH_VERSION="10.3p1"
 RSYNC_VERSION="3.4.2"
 ZLIB_VERSION="1.3.2"
 POPT_VERSION="1.19"
-NCURSES_VERSION="6.4"
+NCURSES_VERSION="6.6"
 BASH_VERSION="5.3"
 
 # ---------------------------------------------------------------------------
@@ -542,6 +542,14 @@ build_ncurses() {
 
     if [ -f "$NCURSES_INST/lib/libncurses.a" ] || [ -f "$NCURSES_INST/lib/libncursesw.a" ]; then
         log "[NCURSES] Already built — skipping."
+        # Ensure non-wide symlinks are present for cached builds
+        mkdir -p "$NCURSES_INST/lib" "$NCURSES_INST/include"
+        cd "$NCURSES_INST/lib"
+        [ -f libncursesw.a ] && ln -sf libncursesw.a libncurses.a
+        [ -f libtinfow.a ] && ln -sf libtinfow.a libtinfo.a 2>/dev/null || true
+        cd "$NCURSES_INST/include"
+        [ -d ncursesw ] && ln -sf ncursesw ncurses 2>/dev/null || true
+        cd "$SCRIPT_DIR"
         return 0
     fi
 
@@ -573,6 +581,14 @@ build_ncurses() {
     log "[NCURSES] Building..."
     make -j"$MAKE_JOBS" $MAKE_V
     make $MAKE_V install
+
+    # Create standard non-wide symlinks so configure scripts can find them
+    cd "$NCURSES_INST/lib"
+    [ -f libncursesw.a ] && ln -sf libncursesw.a libncurses.a
+    [ -f libtinfow.a ] && ln -sf libtinfow.a libtinfo.a 2>/dev/null || true
+    
+    cd "$NCURSES_INST/include"
+    [ -d ncursesw ] && ln -sf ncursesw ncurses 2>/dev/null || true
 
     log "[NCURSES] libncursesw.a: $(du -sh "$NCURSES_INST/lib/libncursesw.a" | cut -f1)"
     cd "$SCRIPT_DIR"
@@ -644,7 +660,9 @@ clean)
     ;;
 cleanall)
     log "Purging all local builds, config caches, and toolchain artifacts..."
-    rm -rf .build/ out/ release/ config.cache config.status build/distcc.env
+    [ -d "$BUILD_DIR" ] && chmod -R u+w "$BUILD_DIR" 2>/dev/null || true
+    [ -d "$OUT_DIR" ] && chmod -R u+w "$OUT_DIR" 2>/dev/null || true
+    rm -rf "$BUILD_DIR" "$OUT_DIR" config.cache config.status "$SCRIPT_DIR/distcc.env"
     if command -v ccache >/dev/null 2>&1; then
         ccache -C
     fi

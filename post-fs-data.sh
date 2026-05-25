@@ -69,17 +69,24 @@ chcon u:object_r:system_file:s0 "$SSH_DIR/home/.ssh/authorized_keys"
 
 # ---------------------------------------------------------------------------
 # 5. Deploy sshd_config only on first install (preserve user edits later).
+#    If the file exists but still points to legacy keys, dynamically migrate it.
 # ---------------------------------------------------------------------------
 if [ ! -f "$SSH_DIR/sshd_config" ]; then
     cp "$MODDIR/sshd_config" "$SSH_DIR/sshd_config"
     chown 0:0 "$SSH_DIR/sshd_config"
     chmod 600 "$SSH_DIR/sshd_config"
     chcon u:object_r:system_file:s0 "$SSH_DIR/sshd_config"
+else
+    # Upgrading users: dynamically relocate keys path without wiping other configs
+    if grep -q "/data/adb/ssh/authorized_keys" "$SSH_DIR/sshd_config"; then
+        sed -i 's|/data/adb/ssh/authorized_keys|/data/adb/ssh/home/.ssh/authorized_keys|g' "$SSH_DIR/sshd_config"
+    fi
 fi
 
 # ---------------------------------------------------------------------------
 # 6. Deploy bash login profile — only on first install (preserve user edits).
 #    bash reads ~/.bash_profile for login shells; $HOME is /data/adb/ssh/home.
+#    If the profile exists but exports the legacy HOME, dynamically migrate it.
 # ---------------------------------------------------------------------------
 if [ -f "$SSH_DIR/.bash_profile" ]; then
     mv "$SSH_DIR/.bash_profile" "$SSH_DIR/home/.bash_profile" 2>/dev/null
@@ -90,4 +97,9 @@ if [ ! -f "$SSH_DIR/home/.bash_profile" ]; then
     chown 0:0 "$SSH_DIR/home/.bash_profile"
     chmod 644 "$SSH_DIR/home/.bash_profile"
     chcon u:object_r:system_file:s0 "$SSH_DIR/home/.bash_profile"
+else
+    # Upgrading users: dynamically relocate HOME path in migrated profiles
+    if grep -q "export HOME=/data/adb/ssh$" "$SSH_DIR/home/.bash_profile"; then
+        sed -i 's|export HOME=/data/adb/ssh$|export HOME=/data/adb/ssh/home|g' "$SSH_DIR/home/.bash_profile"
+    fi
 fi

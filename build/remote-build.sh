@@ -32,6 +32,14 @@ ssh "$REMOTE_HOST" "
     time bash build/build.sh $BUILD_TARGET
 "
 
+if [ "$BUILD_TARGET" = "clean" ] || [ "$BUILD_TARGET" = "cleanall" ]; then
+    echo "[3/4] Cleaning local output directories..."
+    rm -rf "$LOCAL_OUT_DIR"
+    echo "[4/4] Skipping artifact retrieval (cleaning mode)."
+    echo "=== Remote Clean Complete ==="
+    exit 0
+fi
+
 echo "[3/4] Creating local output directory..."
 mkdir -p "$LOCAL_OUT_DIR"
 
