@@ -206,7 +206,8 @@ name=SSH-KSU
 version=1.1.0
 versionCode=2
 author=Jtnqr
-description=${desc}`;
+description=${desc}
+updateJson=https://raw.githubusercontent.com/jtnqr/ssh-ksu/main/update.json`;
   } else {
     // Replace the description line safely in JS
     content = content.replace(/^description=.*/m, `description=${desc}`);
