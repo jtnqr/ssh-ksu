@@ -20,7 +20,7 @@ PidFile /data/adb/ssh/sshd.pid
 # Public-key only; passwords disabled for security.
 AuthorizedKeysFile      /data/adb/ssh/home/.ssh/authorized_keys
 PasswordAuthentication  no
-ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
 # Root login is required since Android's user model is root-centric.
 PermitRootLogin         yes
 
@@ -54,6 +54,6 @@ UseDNS                  no
 Subsystem sftp internal-sftp
 
 # --- Logging ----------------------------------------------------------
-# Logs are written via the -E flag in service.sh; set level here for
+# Logs are written via the -e flag in service.sh; set level here for
 # in-band messages (connection errors, auth failures, etc.).
 LogLevel                INFO
