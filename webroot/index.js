@@ -33,6 +33,15 @@ const sh  = async (cmd) => {
   return { ok: r.errno === 0, out: (r.stdout||'').trim(), err: (r.stderr||'').trim() };
 };
 
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) {
+    bin += String.fromCharCode(bytes[i]);
+  }
+  return btoa(bin);
+}
+
 function toast(msg, dur = 2000) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -162,13 +171,15 @@ async function getIPs() {
 }
 
 async function getClients() {
-  // Use ss to find established connections on the SSH port
   const portR = await getPort();
-  const r = await sh(`ss -tnp 2>/dev/null | grep ':${portR} ' | grep ESTAB`);
+  let r = await sh(`ss -tnp 2>/dev/null | grep ':${portR} ' | grep ESTAB`);
+  if (!r.ok || !r.out) {
+    r = await sh(`netstat -tn 2>/dev/null | grep ':${portR} ' | grep ESTABLISHED`);
+  }
   if (!r.ok || !r.out) return [];
   return r.out.split('\n').filter(Boolean).map(line => {
     const parts = line.trim().split(/\s+/);
-    const peer  = parts[4] || '';
+    const peer  = parts[4] || parts[3] || '';
     const ip    = peer.replace(/:\d+$/, '');
     const since = '(active)';
     return { ip, since };
@@ -190,8 +201,8 @@ async function updateModuleProp(status, port) {
   if (!content.trim() || !content.includes('id=')) {
     content = `id=ssh-ksu
 name=SSH-KSU
-version=v1.2.2
-versionCode=5
+version=1.1.0
+versionCode=2
 author=Jtnqr
 description=${desc}`;
   } else {
@@ -199,9 +210,9 @@ description=${desc}`;
     content = content.replace(/^description=.*/m, `description=${desc}`);
   }
 
-  // Write content directly back to the file using redirection (SELinux safe)
-  const escapedContent = content.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$').replace(/"/g, '\\"');
-  const r = await sh(`echo "${escapedContent}" > ${MOD_DIR}/module.prop`);
+  // Write content safely using base64 stream to prevent shell metacharacter expansion
+  const b64 = toBase64(content);
+  const r = await sh(`printf '%s' '${b64}' | base64 -d > ${MOD_DIR}/module.prop`);
   if (r.ok || r.errno === 0) {
     lastDescription = desc;
   }
@@ -450,9 +461,9 @@ async function saveFile() {
   const status = document.getElementById('save-status');
   setButtonLoading(btn, true);
   const content = editorArea.value;
-  // write via printf to handle special chars safely
-  const escaped = content.replace(/'/g, "'\\''");
-  const r = await sh(`printf '%s' '${escaped}' > ${filePaths[activeFile]}`);
+  // Write safely via base64 stream to prevent quote escaping and ARG_MAX shell limits
+  const b64 = toBase64(content);
+  const r = await sh(`printf '%s' '${b64}' | base64 -d > ${filePaths[activeFile]}`);
   setButtonLoading(btn, false);
   if (r.ok || r.errno === 0) {
     status.className = 'save-status ok';
