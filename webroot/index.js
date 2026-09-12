@@ -516,9 +516,21 @@ async function loadKeys() {
       <div class="key-header">
         <span class="key-type">${k.type}</span>
       </div>
-      <div class="key-fp">${k.fp}</div>
+      <div class="key-fp" title="Tap to copy fingerprint" role="button" tabindex="0">${k.fp}</div>
     </div>
   `).join('');
+
+  el.querySelectorAll('.key-fp').forEach(fpEl => {
+    fpEl.addEventListener('click', async () => {
+      const text = fpEl.textContent.trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        toast('Fingerprint copied');
+      } catch {
+        toast(text);
+      }
+    });
+  });
 }
 
 async function regenKey(type, bits) {
