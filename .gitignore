@@ -23,10 +23,5 @@ configure.log
 *.log
 .DS_Store
 
-# Agentic, RAG, & Local Development Workspace Assets
-.gemini/
-.antigravitycli/
-.agents/*
-!.agents/AGENTS.md
+# Agentic & Local Development Workspace Assets
 .hermes/
-graphify-out/
