@@ -16,7 +16,7 @@ log() {
 stop_sshd() {
     if [ -f "$SSHD_PID" ]; then
         PID="$(cat "$SSHD_PID" 2>/dev/null)"
-        if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+        if [ -n "$PID" ] && [ -d "/proc/$PID" ] && grep -q "sshd" "/proc/$PID/cmdline" 2>/dev/null; then
             kill "$PID" 2>/dev/null && sleep 0.2
         fi
         rm -f "$SSHD_PID"
@@ -34,7 +34,7 @@ start_sshd() {
     # Guard: do not start if already running
     if [ -f "$SSHD_PID" ]; then
         PID="$(cat "$SSHD_PID" 2>/dev/null)"
-        if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+        if [ -n "$PID" ] && [ -d "/proc/$PID" ] && grep -q "sshd" "/proc/$PID/cmdline" 2>/dev/null; then
             log "[ssh-ksu] start requested but sshd already running (pid=$PID). Exiting."
             exit 0
         fi
@@ -142,7 +142,7 @@ if [ -z "$1" ]; then
     echo ""
     while true; do
         PID="$(cat "$SSHD_PID" 2>/dev/null)"
-        if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+        if [ -n "$PID" ] && [ -d "/proc/$PID" ] && grep -q "sshd" "/proc/$PID/cmdline" 2>/dev/null; then
             echo "● running  $(date '+%H:%M:%S')"
         else
             echo "○ stopped  $(date '+%H:%M:%S')"

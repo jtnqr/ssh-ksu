@@ -38,8 +38,7 @@ sleep 3
 # ---------------------------------------------------------------------------
 if [ -f "$SSHD_PID" ]; then
     PID="$(cat "$SSHD_PID")"
-    # /proc/<pid>/exe is a reliable liveness check without 'ps' flags.
-    if [ -d "/proc/$PID" ]; then
+    if [ -d "/proc/$PID" ] && grep -q "sshd" "/proc/$PID/cmdline" 2>/dev/null; then
         log "[ssh-ksu] sshd already running (pid=$PID). Exiting."
         exit 0
     fi
@@ -148,12 +147,16 @@ unshare -m sh -c "
     done
 " >> "$SSHD_LOG" 2>&1 &
 
-# Wait for process to initialize and write PID fallback
-sleep 1.5
-pid=$(pgrep -f "$SSHD_BIN" 2>/dev/null | head -1)
-if [ -n "$pid" ]; then
-    echo "$pid" > "$SSHD_PID"
-    log "[ssh-ksu] sshd launched successfully (pid=$pid)."
+# Wait for sshd to write PID file, fallback only if missing
+i=0; while [ $i -lt 6 ]; do [ -f "$SSHD_PID" ] && break; sleep 0.5; i=$((i+1)); done
+if [ ! -f "$SSHD_PID" ]; then
+    pid=$(pgrep -f "$SSHD_BIN" 2>/dev/null | head -1)
+    [ -n "$pid" ] && echo "$pid" > "$SSHD_PID"
+fi
+
+PID="$(cat "$SSHD_PID" 2>/dev/null)"
+if [ -n "$PID" ] && [ -d "/proc/$PID" ] && grep -q "sshd" "/proc/$PID/cmdline" 2>/dev/null; then
+    log "[ssh-ksu] sshd launched successfully (pid=$PID)."
 else
     log "[ssh-ksu] sshd launched (pid unknown)."
 fi
