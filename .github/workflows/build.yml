@@ -75,10 +75,12 @@ jobs:
 
       # ── 9. Pack module ZIP ───────────────────────────────────────────────
       - name: Pack module ZIP
+        env:
+          VERSION_OVERRIDE: ${{ github.event.inputs.version_override }}
         run: |
           chmod +x pack.sh
-          if [ -n "${{ github.event.inputs.version_override }}" ]; then
-            bash pack.sh --version "${{ github.event.inputs.version_override }}" --arch all
+          if [ -n "$VERSION_OVERRIDE" ]; then
+            bash pack.sh --version "$VERSION_OVERRIDE" --arch all
           else
             bash pack.sh --arch all
           fi
@@ -86,8 +88,13 @@ jobs:
       # ── 10. Read release metadata ────────────────────────────────────────
       - name: Read release metadata
         id: meta
+        env:
+          VERSION_OVERRIDE: ${{ github.event.inputs.version_override }}
         run: |
           MOD_VERSION="$(grep '^version=' module.prop | cut -d= -f2)"
+          if [ -n "$VERSION_OVERRIDE" ]; then
+            MOD_VERSION="$VERSION_OVERRIDE"
+          fi
           MOD_ID="$(grep '^id=' module.prop | cut -d= -f2)"
           ZIP_NAME="${MOD_ID}-${MOD_VERSION}.zip"
           echo "version=${MOD_VERSION}"       >> "$GITHUB_OUTPUT"
