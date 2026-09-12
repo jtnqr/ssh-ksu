@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 # Path
 # ---------------------------------------------------------------------------
-export PATH=/system/bin:/system/xbin:/data/adb/ssh/bin:$PATH
+export PATH=/data/adb/modules/ssh-ksu/system/bin:/system/bin:/system/xbin:/data/adb/ssh/bin:$PATH
 
 # ---------------------------------------------------------------------------
 # Environment

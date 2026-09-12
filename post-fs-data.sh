@@ -102,4 +102,8 @@ else
     if grep -q "export HOME=/data/adb/ssh$" "$SSH_DIR/home/.bash_profile"; then
         sed -i 's|export HOME=/data/adb/ssh$|export HOME=/data/adb/ssh/home|g' "$SSH_DIR/home/.bash_profile"
     fi
+    # Ensure module binaries path is in PATH
+    if ! grep -q "/data/adb/modules/ssh-ksu/system/bin" "$SSH_DIR/home/.bash_profile"; then
+        sed -i 's|export PATH=|export PATH=/data/adb/modules/ssh-ksu/system/bin:|g' "$SSH_DIR/home/.bash_profile"
+    fi
 fi
