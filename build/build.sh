@@ -34,17 +34,17 @@ MAKE_V=""
 # ---------------------------------------------------------------------------
 # ① Version pins
 # ---------------------------------------------------------------------------
-OPENSSL_VERSION="4.0.0"
-OPENSSH_VERSION="10.3p1"
-RSYNC_VERSION="3.4.2"
+OPENSSL_VERSION="4.0.2"
+OPENSSH_VERSION="10.5p1"
+RSYNC_VERSION="3.5.0"
 ZLIB_VERSION="1.3.2"
 POPT_VERSION="1.19"
 NCURSES_VERSION="6.6"
 BASH_VERSION="5.3"
-LIBEVENT_VERSION="2.1.12-stable"
-TMUX_VERSION="3.6b"
-HTOP_VERSION="3.5.1"
-NANO_VERSION="9.0"
+LIBEVENT_VERSION="2.1.13-stable"
+TMUX_VERSION="3.7c"
+HTOP_VERSION="3.5.3"
+NANO_VERSION="9.2"
 
 # ---------------------------------------------------------------------------
 # ② Source URLs
