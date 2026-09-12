@@ -207,11 +207,19 @@ html, body {
 .row:last-child, .interface-row:last-child { border-bottom: none; }
 .row-label { color: var(--text-secondary); }
 .row-value { color: var(--text); font-family: var(--font-mono); font-size: 13px; }
-a.row-value.link {
+.row.clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.12s ease;
+}
+.row.clickable:hover, .row.clickable:active {
+  background-color: var(--surface-variant);
+}
+.row-value.link {
   color: var(--primary);
   text-decoration: none;
 }
-a.row-value.link:hover {
+.row.clickable:hover .row-value.link {
   text-decoration: underline;
 }
 

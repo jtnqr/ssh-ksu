@@ -789,18 +789,21 @@ document.getElementById('modal-cancel').addEventListener('click', () =>
   document.getElementById('modal').classList.remove('open')
 );
 
-// Intercept external links and open in external Android browser
-document.addEventListener('click', (e) => {
-  const link = e.target.closest('a[href^="http"], .external-link');
-  if (link) {
-    e.preventDefault();
-    const url = link.getAttribute('href') || link.dataset.href;
-    if (!url) return;
-    sh(`am start -a android.intent.action.VIEW -d "${url}"`).catch(() => {
-      window.open(url, '_blank', 'noopener,noreferrer');
+// GitHub repository external link handler (clipboard copy + external browser intent)
+const GITHUB_REPO_URL = 'https://github.com/jtnqr/ssh-ksu';
+const rowGithub = document.getElementById('row-github');
+if (rowGithub) {
+  rowGithub.addEventListener('click', async () => {
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(GITHUB_REPO_URL);
+    } catch (_) {}
+    sh(`am start -a android.intent.action.VIEW -d "${GITHUB_REPO_URL}"`).then(() => {
+      toast('Opening browser...');
+    }).catch(() => {
+      toast('Copied repository URL');
     });
-  }
-});
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // Init
