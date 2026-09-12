@@ -36,12 +36,13 @@ def setup_sandbox():
         f.write(mprop)
 
     with open(os.path.join(home_ssh, "authorized_keys"), "w") as f:
-        f.write("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG5a8Wd4mE6Q1y2e3r4t5y6u7i8o9p0a1b2c3d4e5f6g workstation@local\n")
+        # Synthetic RFC-safe dummy key strictly for mock browser testing
+        f.write("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDUMMYMOCKKEY0000000000000000000000000000000000 mock@e2e.test\n")
 
     with open(os.path.join(ssh_dir, "sshd.log"), "w") as f:
         f.write("[2026-09-12 13:00:00] [ssh-ksu] sshd launched successfully (pid=12345).\n")
         f.write("[2026-09-12 13:00:02] Server listening on 0.0.0.0 port 22.\n")
-        f.write("[2026-09-12 13:01:15] Accepted publickey for root from 192.168.1.50 port 54321 ssh2: ED25519\n")
+        f.write("[2026-09-12 13:01:15] Accepted publickey for root from 192.0.2.50 port 54321 ssh2: ED25519\n")
 
     # Host keys
     subprocess.run(["ssh-keygen", "-t", "ed25519", "-f", os.path.join(ssh_dir, "ssh_host_ed25519_key"), "-N", ""],
@@ -158,12 +159,12 @@ class E2EHandler(http.server.SimpleHTTPRequestHandler):
             cmd = raw_cmd.replace("/data/adb/ssh", f"{SANDBOX}/ssh")
             cmd = cmd.replace("/data/adb/modules/ssh-ksu", f"{SANDBOX}/modules/ssh-ksu")
 
-            # Intercept system info for sanitized PII-free testing
+            # Intercept system info for sanitized PII-free testing (RFC 5737 TEST-NET blocks)
             if "ip addr show" in cmd:
                 mock_out = (
-                    "    inet 192.168.1.105/24 brd 192.168.1.255 scope global wlan0\n"
-                    "    inet 100.64.0.15/10 scope global tailscale0\n"
-                    "    inet 10.0.0.2/24 scope global rmnet0\n"
+                    "    inet 192.0.2.105/24 brd 192.0.2.255 scope global wlan0\n"
+                    "    inet 198.51.100.15/24 scope global tailscale0\n"
+                    "    inet 203.0.113.2/24 scope global rmnet0\n"
                 )
                 res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
             elif "ssh-keygen -l" in cmd:
@@ -173,7 +174,7 @@ class E2EHandler(http.server.SimpleHTTPRequestHandler):
                     mock_out = "2048 SHA256:4mP+Y0qA2B4cD5eF6gH7iJ8kL9mN0oP1qR2sT3uV4wX root@android (RSA)\n"
                 res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
             elif "ss -tn" in cmd or "netstat" in cmd:
-                mock_out = "ESTAB 0 0 192.168.1.105:22 192.168.1.50:54321\n"
+                mock_out = "ESTAB 0 0 192.0.2.105:22 192.0.2.50:54321\n"
                 res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
             elif "BIN_DIR" in cmd or "sshd -V" in cmd:
                 mock_out = (
