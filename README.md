@@ -10,12 +10,12 @@ A hardened OpenSSH and Bash server module designed specifically for Android devi
 
 | **Dashboard & Quick Connect** | **Real-Time Live Logs** |
 | :---: | :---: |
-| <img src="docs/screenshots/dashboard.png" width="360" alt="Dashboard View"> | <img src="docs/screenshots/logs.png" width="360" alt="Live Logs View"> |
+| <img src="docs/screenshots/dashboard.png" width="320" alt="Dashboard View"> | <img src="docs/screenshots/logs.png" width="320" alt="Live Logs View"> |
 | *1-Tap connect command sync, tactile service controls, and network interfaces* | *Real-time log viewer with dedicated line number gutter and pause/clear* |
 
 | **Configuration Editor** | **Host Key Management** |
 | :---: | :---: |
-| <img src="docs/screenshots/config.png" width="360" alt="Config Editor View"> | <img src="docs/screenshots/keys.png" width="360" alt="Host Keys View"> |
+| <img src="docs/screenshots/config.png" width="320" alt="Config Editor View"> | <img src="docs/screenshots/keys.png" width="320" alt="Host Keys View"> |
 | *1:1 synchronized line gutters and safe Base64 streaming writes* | *Monospace fingerprint boxes with 1-tap copy, key rotation, and Danger Zone* |
 
 ---
