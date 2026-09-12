@@ -138,7 +138,7 @@ echo "nameserver 1.1.1.1" >> /dev/etc_upper/resolv.conf
 
 # Attempt overlayfs first
 if mount -t overlay overlay -o lowerdir="\$SYS_ETC",upperdir=/dev/etc_upper,workdir=/dev/etc_work "\$SYS_ETC" 2>/dev/null; then
-    echo "overlay" > /dev/mount_type
+    echo "MOUNT_METHOD=overlay"
 else
     # Fallback to tmpfs + copy
     mount -t tmpfs tmpfs /dev/etc
@@ -147,7 +147,7 @@ else
     echo "nameserver 8.8.8.8" > /dev/etc/resolv.conf
     echo "nameserver 1.1.1.1" >> /dev/etc/resolv.conf
     mount --bind /dev/etc "\$SYS_ETC"
-    echo "tmpfs" > /dev/mount_type
+    echo "MOUNT_METHOD=tmpfs"
 fi
 
 # Verify files exist and are correct
@@ -179,7 +179,8 @@ EOF
         \"$TEST_DIR/test_mount.sh\"
     " 2>&1); then
         # Parse results
-        MTYPE=$(echo "$OUT" | grep -oE "overlay|tmpfs" || echo "unknown")
+        MTYPE=$(echo "$OUT" | grep "^MOUNT_METHOD=" | cut -d= -f2 || echo "unknown")
+        if [ -z "$MTYPE" ]; then MTYPE="unknown"; fi
         if echo "$OUT" | grep -q "VERIFY_PASSWD=OK" && echo "$OUT" | grep -q "VERIFY_RESOLV=OK" && echo "$OUT" | grep -q "VERIFY_HOSTS=OK"; then
             log_pass "Namespace mounting logic succeeded (Method: $MTYPE)."
         else
