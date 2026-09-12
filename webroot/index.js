@@ -86,6 +86,7 @@ function setButtonLoading(btn, loading) {
 let lastDescription = '';
 let activeProcessUptime = null;
 let uptimeInterval = null;
+let selectedIp = null;
 
 async function getStatus() {
   const pidR = await sh(`cat ${PID_FILE} 2>/dev/null`);
@@ -260,19 +261,31 @@ async function refreshDashboard() {
   if (ips.length === 0) {
     ipList.innerHTML = `<div class="empty-state">No network interfaces found</div>`;
   } else {
-    ipList.innerHTML = ips.map(x => `
-      <div class="interface-row">
-        <span class="if-name">${x.iface}</span>
-        <span class="if-ip">${x.ip}</span>
-      </div>
-    `).join('');
+    if (!selectedIp || !ips.some(x => x.ip === selectedIp)) {
+      selectedIp = ips[0].ip;
+    }
+    ipList.innerHTML = ips.map(x => {
+      const isSelected = x.ip === selectedIp;
+      return `
+        <div class="interface-row clickable ${isSelected ? 'selected' : ''}" data-ip="${x.ip}" role="button" tabindex="0" title="Tap to copy SSH command">
+          <div class="if-left">
+            <span class="selection-dot ${isSelected ? 'active' : ''}"></span>
+            <span class="if-name">${x.iface}</span>
+          </div>
+          <div class="if-right">
+            <span class="if-ip">${x.ip}</span>
+            <span class="if-action">Copy</span>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   // Quick connect command
   const cmdEl = document.getElementById('quick-connect-cmd');
   if (cmdEl) {
-    const primaryIp = (ips && ips.length > 0) ? ips[0].ip : '127.0.0.1';
-    cmdEl.textContent = `ssh root@${primaryIp} -p ${port}`;
+    const activeIp = selectedIp || ((ips && ips.length > 0) ? ips[0].ip : '127.0.0.1');
+    cmdEl.textContent = `ssh root@${activeIp} -p ${port}`;
   }
 
   // Clients
@@ -587,6 +600,52 @@ if (copyBtn) {
     } catch {
       // Fallback
       toast(cmd);
+    }
+  });
+}
+
+const ipListEl = document.getElementById('ip-list');
+if (ipListEl) {
+  const handleIpSelect = async (row) => {
+    const ip = row.dataset.ip;
+    if (!ip) return;
+    selectedIp = ip;
+
+    // Update active row visual states
+    ipListEl.querySelectorAll('.interface-row').forEach(r => {
+      const active = r.dataset.ip === selectedIp;
+      r.classList.toggle('selected', active);
+      r.querySelector('.selection-dot')?.classList.toggle('active', active);
+    });
+
+    // Update connect command box
+    const portEl = document.getElementById('info-port');
+    const port = (portEl && portEl.textContent.trim() !== '—') ? portEl.textContent.trim() : '22';
+    const cmd = `ssh root@${selectedIp} -p ${port}`;
+    const cmdEl = document.getElementById('quick-connect-cmd');
+    if (cmdEl) cmdEl.textContent = cmd;
+
+    // Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(cmd);
+      toast(`Copied: ${cmd}`);
+    } catch {
+      toast(cmd);
+    }
+  };
+
+  ipListEl.addEventListener('click', (e) => {
+    const row = e.target.closest('.interface-row');
+    if (row) handleIpSelect(row);
+  });
+
+  ipListEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const row = e.target.closest('.interface-row');
+      if (row) {
+        e.preventDefault();
+        handleIpSelect(row);
+      }
     }
   });
 }

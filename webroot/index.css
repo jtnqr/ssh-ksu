@@ -208,6 +208,62 @@ html, body {
 .row-label { color: var(--text-secondary); }
 .row-value { color: var(--text); font-family: var(--font-mono); font-size: 13px; }
 
+/* Clickable Interface Row */
+.interface-row.clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.12s ease;
+}
+
+.interface-row.clickable:hover {
+  background-color: var(--surface-variant);
+}
+
+.interface-row.clickable:active {
+  background-color: var(--outline-variant);
+}
+
+.interface-row.selected {
+  background-color: rgba(147, 197, 253, 0.08);
+}
+
+.if-left, .if-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: 1px solid var(--text-tertiary);
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.selection-dot.active {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.if-action {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--outline);
+}
+
+.interface-row.clickable:hover .if-action,
+.interface-row.selected .if-action {
+  color: var(--primary);
+  border-color: rgba(147, 197, 253, 0.3);
+}
+
 /* Command Box */
 .command-box {
   display: flex;
