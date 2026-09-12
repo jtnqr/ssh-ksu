@@ -159,10 +159,11 @@ async function getIPs() {
   const r = await sh(`ip addr show 2>/dev/null | grep -E 'inet ' | grep -v '127.0.0.1'`);
   if (!r.ok || !r.out) return [];
   return r.out.split('\n').map(line => {
-    const m = line.match(/inet\s+([\d.]+)\/\d+.*?(?:scope\s+\w+\s+)?(\S+)?$/);
+    const m = line.match(/inet\s+([\d.]+)\/\d+/);
     if (!m) return null;
-    const ip  = m[1];
-    const iface = line.match(/\s(\w+)$/)?.[1] || '?';
+    const ip = m[1];
+    const parts = line.trim().split(/\s+/);
+    const iface = parts[parts.length - 1] || 'unknown';
     let type = 'other';
     if (/wlan|wlp/.test(iface)) type = 'wifi';
     else if (/rmnet|ccmni|usb/.test(iface)) type = 'mobile';
@@ -257,16 +258,21 @@ async function refreshDashboard() {
   const ips = await getIPs();
   const ipList = document.getElementById('ip-list');
   if (ips.length === 0) {
-    ipList.innerHTML = `<div class="empty-state"><div class="icon">📡</div>No network interfaces found</div>`;
+    ipList.innerHTML = `<div class="empty-state">No network interfaces found</div>`;
   } else {
     ipList.innerHTML = ips.map(x => `
-      <div class="ip-item">
-        <div>
-          <span class="ip-badge ${x.type}">${x.type === 'wifi' ? '📶 WiFi' : x.type === 'mobile' ? '📱 Mobile' : x.iface}</span>
-        </div>
-          <span class="ip-addr">${x.ip}</span>
+      <div class="interface-row">
+        <span class="if-name">${x.iface}</span>
+        <span class="if-ip">${x.ip}</span>
       </div>
     `).join('');
+  }
+
+  // Quick connect command
+  const cmdEl = document.getElementById('quick-connect-cmd');
+  if (cmdEl) {
+    const primaryIp = (ips && ips.length > 0) ? ips[0].ip : '127.0.0.1';
+    cmdEl.textContent = `ssh root@${primaryIp} -p ${port}`;
   }
 
   // Clients
@@ -281,15 +287,12 @@ async function refreshClients(status) {
   const el = document.getElementById('client-list');
   document.getElementById('info-clients').textContent = clients.length.toString();
   if (clients.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">👥</div>No active sessions</div>`;
+    el.innerHTML = `<div class="empty-state">No active sessions</div>`;
   } else {
     el.innerHTML = clients.map(c => `
-      <div class="client-item">
-        <div class="client-header">
-          <span class="client-ip">${c.ip}</span>
-          <span class="client-since">${c.since}</span>
-        </div>
-        <div class="client-user">root session</div>
+      <div class="row">
+        <span class="row-label">${c.ip}</span>
+        <span class="row-value">${c.since}</span>
       </div>
     `).join('');
   }
@@ -573,6 +576,20 @@ document.querySelectorAll('.tab').forEach(t =>
 document.getElementById('btn-start').addEventListener('click', () => runControl('start'));
 document.getElementById('btn-stop').addEventListener('click',  () => runControl('stop'));
 document.getElementById('btn-restart').addEventListener('click', () => runControl('restart'));
+
+const copyBtn = document.getElementById('btn-copy-ssh');
+if (copyBtn) {
+  copyBtn.addEventListener('click', async () => {
+    const cmd = document.getElementById('quick-connect-cmd').textContent.trim();
+    try {
+      await navigator.clipboard.writeText(cmd);
+      toast('Copied to clipboard');
+    } catch {
+      // Fallback
+      toast(cmd);
+    }
+  });
+}
 
 document.getElementById('btn-toggle-live').addEventListener('click', () => {
   if (!logInterval) {

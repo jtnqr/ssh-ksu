@@ -2,126 +2,107 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SSH Server</title>
 <link rel="stylesheet" href="index.css">
 </head>
 <body>
 <div id="app">
 
-  <!-- Header -->
-  <header>
-    <div class="header-left">
-      <div class="logo">🔐</div>
-      <div>
-        <div class="header-title">SSH Server</div>
-        <div class="header-sub">ssh-ksu module</div>
-      </div>
+  <!-- Top App Bar -->
+  <header class="top-bar">
+    <div class="title-area">
+      <h1>SSH Server</h1>
+      <p>OpenSSH 10.5p1</p>
     </div>
-    <div id="status-pill" class="loading">
+    <div id="status-pill" class="status-badge loading">
       <div class="dot pulse"></div>
-      <span>…</span>
+      <span>Checking…</span>
     </div>
   </header>
 
-  <!-- Tab bar -->
-  <nav>
-    <button class="tab active" data-panel="dashboard">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      Status
-    </button>
-    <button class="tab" data-panel="log">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Log
-    </button>
-    <button class="tab" data-panel="editor">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-      Config
-    </button>
-    <button class="tab" data-panel="keys">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-      Keys
-    </button>
+  <!-- Segmented Navigation -->
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-panel="dashboard" role="tab" aria-selected="true">Status</button>
+    <button class="tab" data-panel="log" role="tab" aria-selected="false">Logs</button>
+    <button class="tab" data-panel="editor" role="tab" aria-selected="false">Config</button>
+    <button class="tab" data-panel="keys" role="tab" aria-selected="false">Keys</button>
   </nav>
 
   <!-- Dashboard Panel -->
   <div class="panel active" id="dashboard">
 
-    <div class="card">
-      <div class="card-title">Controls</div>
-      <div class="btn-row">
-        <button class="btn btn-start" id="btn-start">
-          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Start
-        </button>
-        <button class="btn btn-stop" id="btn-stop">
-          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-          Stop
-        </button>
-        <button class="btn btn-restart" id="btn-restart">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Restart
-        </button>
+    <!-- Connect Command -->
+    <div class="section">
+      <div class="section-label">Connect</div>
+      <div class="command-box">
+        <code id="quick-connect-cmd">ssh root@127.0.0.1 -p 22</code>
+        <button class="btn-copy" id="btn-copy-ssh" type="button" aria-label="Copy connection command">Copy</button>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Info</div>
-      <div class="stats-grid">
-        <div class="stat">
-          <div class="stat-label">Port</div>
-          <div class="stat-value accent" id="info-port">—</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">PID</div>
-          <div class="stat-value" id="info-pid">—</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Uptime</div>
-          <div class="stat-value" id="info-uptime">—</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Clients</div>
-          <div class="stat-value accent" id="info-clients">—</div>
-        </div>
+    <!-- Daemon Controls -->
+    <div class="section">
+      <div class="section-label">Daemon Controls</div>
+      <div class="btn-group">
+        <button class="btn btn-start" id="btn-start" type="button">Start</button>
+        <button class="btn btn-restart" id="btn-restart" type="button">Restart</button>
+        <button class="btn btn-stop" id="btn-stop" type="button">Stop</button>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Network Addresses</div>
-      <div class="ip-list" id="ip-list">
-        <div class="empty-state">
-          <div class="icon">📡</div>
-          Loading…
+    <!-- Service Details -->
+    <div class="section">
+      <div class="section-label">Service Details</div>
+      <div class="group">
+        <div class="row">
+          <span class="row-label">Port</span>
+          <span class="row-value" id="info-port">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Process ID</span>
+          <span class="row-value" id="info-pid">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Uptime</span>
+          <span class="row-value" id="info-uptime">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Active Sessions</span>
+          <span class="row-value" id="info-clients">—</span>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Connected Clients <span id="clients-refresh-label" style="font-size:9px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">· auto-refresh 10s</span></div>
-      <div class="client-list" id="client-list">
-        <div class="empty-state">
-          <div class="icon">👥</div>
-          No active sessions
-        </div>
+    <!-- Network Interfaces -->
+    <div class="section">
+      <div class="section-label">Network Interfaces</div>
+      <div class="group" id="ip-list">
+        <div class="empty-state">Loading interfaces…</div>
+      </div>
+    </div>
+
+    <!-- Active Sessions -->
+    <div class="section">
+      <div class="section-label">Connected Clients</div>
+      <div class="group" id="client-list">
+        <div class="empty-state">No active sessions</div>
       </div>
     </div>
 
   </div>
 
   <!-- Log Panel -->
-  <div class="panel" id="log" style="padding:0; height: calc(100vh - 108px)">
-    <div id="log-container" style="border-radius:0; border-left:none; border-right:none; border-bottom:none; flex:1">
+  <div class="panel" id="log">
+    <div class="log-container">
       <div class="log-toolbar">
-        <div class="log-toolbar-left">
-          <div id="live-indicator">
-            <div id="live-dot"></div>
-            <span id="live-label">LIVE</span>
-          </div>
+        <div id="live-indicator">
+          <div id="live-dot"></div>
+          <span id="live-label">LIVE</span>
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost" id="btn-toggle-live" style="padding:4px 10px;font-size:11px;min-width:unset;flex:unset">Pause</button>
-          <button class="btn btn-ghost" id="btn-clear-log" style="padding:4px 10px;font-size:11px;min-width:unset;flex:unset">Clear</button>
+        <div class="log-actions">
+          <button class="btn-compact" id="btn-toggle-live" type="button">Pause</button>
+          <button class="btn-compact" id="btn-clear-log" type="button">Clear</button>
         </div>
       </div>
       <div id="log-scroll">
@@ -132,78 +113,67 @@
 
   <!-- Config Editor Panel -->
   <div class="panel" id="editor">
-    <div class="card" style="flex:1">
-      <div class="editor-header">
-        <div class="file-tabs">
-          <button class="file-tab active" data-file="sshd_config">sshd_config</button>
-          <button class="file-tab" data-file="authorized_keys">authorized_keys</button>
-        </div>
+    <div class="editor-container">
+      <div class="file-tabs">
+        <button class="file-tab active" data-file="sshd_config" type="button">sshd_config</button>
+        <button class="file-tab" data-file="authorized_keys" type="button">authorized_keys</button>
       </div>
       <div class="editor-wrap">
         <div id="editor-gutter">1</div>
-        <textarea id="editor-area" spellcheck="false" placeholder="Loading…"></textarea>
+        <textarea id="editor-area" spellcheck="false" placeholder="Loading file…" aria-label="Configuration editor"></textarea>
       </div>
       <div class="editor-actions">
-        <button class="btn btn-primary" id="btn-save" style="flex:unset;padding:8px 20px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Save
-        </button>
-        <button class="btn btn-ghost" id="btn-reload-file" style="flex:unset;padding:8px 14px">↺ Reload</button>
-        <span class="save-status" id="save-status"></span>
+        <button class="btn btn-save" id="btn-save" type="button">Save File</button>
+        <button class="btn btn-outline" id="btn-reload-file" type="button">↺ Reload</button>
+        <span class="save-status" id="save-status" aria-live="polite"></span>
       </div>
     </div>
   </div>
 
   <!-- Keys Panel -->
   <div class="panel" id="keys">
-    <div class="card">
-      <div class="card-title">Host Keys</div>
-      <div id="key-list">
-        <div class="empty-state"><div class="spin"></div></div>
+    <div class="section">
+      <div class="section-label">Host Keys</div>
+      <div class="group" id="key-list">
+        <div class="empty-state">Loading keys…</div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Regenerate Host Keys</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
-        Deletes existing host keys and generates new ones. Existing SSH clients will see a host key warning and need to re-accept.
-      </p>
-      <div class="btn-row">
-        <button class="btn btn-warn" id="btn-regen-ed25519">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Regen ed25519
-        </button>
-        <button class="btn btn-warn" id="btn-regen-rsa">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Regen RSA-4096
-        </button>
+    <div class="section">
+      <div class="section-label">Key Management</div>
+      <div class="key-desc">
+        Regenerating keys replaces current cryptographic identities. Clients must verify and re-accept changed fingerprints.
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-outline" id="btn-regen-ed25519" type="button">Regen ed25519</button>
+        <button class="btn btn-outline" id="btn-regen-rsa" type="button">Regen RSA-4096</button>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Danger Zone</div>
-      <button class="btn btn-danger" id="btn-regen-all" style="width:100%">
+    <div class="section">
+      <div class="section-label">Danger Zone</div>
+      <button class="btn btn-danger-full" id="btn-regen-all" type="button">
         ⚠ Regenerate ALL Keys &amp; Restart
       </button>
     </div>
   </div>
 
-</div><!-- /app -->
+</div>
 
 <!-- Confirm Modal -->
-<div class="modal-backdrop" id="modal">
+<div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div class="modal">
-    <h3 id="modal-title">Confirm</h3>
+    <h3 id="modal-title">Confirm Action</h3>
     <p id="modal-body"></p>
     <div class="modal-actions">
-      <button class="btn btn-ghost" id="modal-cancel" style="flex:unset;padding:8px 16px">Cancel</button>
-      <button class="btn btn-danger" id="modal-ok" style="flex:unset;padding:8px 16px">Confirm</button>
+      <button class="btn-modal" id="modal-cancel" type="button">Cancel</button>
+      <button class="btn-modal danger" id="modal-ok" type="button">Confirm</button>
     </div>
   </div>
 </div>
 
 <!-- Toast -->
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script type="module" src="index.js"></script>
 </body>
