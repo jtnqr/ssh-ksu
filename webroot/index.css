@@ -207,6 +207,13 @@ html, body {
 .row:last-child, .interface-row:last-child { border-bottom: none; }
 .row-label { color: var(--text-secondary); }
 .row-value { color: var(--text); font-family: var(--font-mono); font-size: 13px; }
+a.row-value.link {
+  color: var(--primary);
+  text-decoration: none;
+}
+a.row-value.link:hover {
+  text-decoration: underline;
+}
 
 /* Clickable Interface Row */
 .interface-row.clickable {

@@ -13,7 +13,7 @@
   <header class="top-bar">
     <div class="title-area">
       <h1>SSH Server</h1>
-      <p>OpenSSH 10.5p1</p>
+      <p id="app-subtitle">OpenSSH • ssh-ksu</p>
     </div>
     <div id="status-pill" class="status-badge loading">
       <div class="dot pulse"></div>
@@ -87,6 +87,49 @@
       <div class="section-label">Connected Clients</div>
       <div class="group" id="client-list">
         <div class="empty-state">No active sessions</div>
+      </div>
+    </div>
+
+    <!-- About & Binaries -->
+    <div class="section">
+      <div class="section-label">About & Binaries</div>
+      <div class="group">
+        <div class="row">
+          <span class="row-label">Module Version</span>
+          <span class="row-value" id="about-mod-ver">v1.1.0</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Architecture</span>
+          <span class="row-value" id="about-arch">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">OpenSSH</span>
+          <span class="row-value" id="about-sshd">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Bash</span>
+          <span class="row-value" id="about-bash">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">tmux</span>
+          <span class="row-value" id="about-tmux">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">htop</span>
+          <span class="row-value" id="about-htop">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">GNU nano</span>
+          <span class="row-value" id="about-nano">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">rsync</span>
+          <span class="row-value" id="about-rsync">—</span>
+        </div>
+        <div class="row">
+          <span class="row-label">GitHub</span>
+          <a href="https://github.com/jtnqr/ssh-ksu" target="_blank" rel="noopener" class="row-value link">jtnqr/ssh-ksu</a>
+        </div>
       </div>
     </div>
 

@@ -175,6 +175,19 @@ class E2EHandler(http.server.SimpleHTTPRequestHandler):
             elif "ss -tn" in cmd or "netstat" in cmd:
                 mock_out = "ESTAB 0 0 192.168.1.105:22 192.168.1.50:54321\n"
                 res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
+            elif "BIN_DIR" in cmd or "sshd -V" in cmd:
+                mock_out = (
+                    "ARCH:aarch64\n"
+                    "SSHD:OpenSSH_10.5p1, OpenSSL 4.0.2 12 Sep 2026\n"
+                    "BASH:GNU bash, version 5.3.0(2)-release (aarch64-unknown-linux-musl)\n"
+                    "TMUX:tmux 3.7c\n"
+                    "HTOP:htop 3.5.3\n"
+                    "NANO: GNU nano, version 9.2\n"
+                    "RSYNC:rsync  version 3.5.0  protocol version 32\n"
+                    "MOD_VER:1.1.0\n"
+                    "MOD_CODE:2\n"
+                )
+                res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
             else:
                 res = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)
 

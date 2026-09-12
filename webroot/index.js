@@ -293,6 +293,9 @@ async function refreshDashboard() {
 
   // module.prop
   await updateModuleProp(status, port);
+
+  // About & Binaries (single-shot query)
+  loadAboutInfo().catch(console.error);
 }
 
 async function refreshClients(status) {
@@ -308,6 +311,93 @@ async function refreshClients(status) {
         <span class="row-value">${c.since}</span>
       </div>
     `).join('');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// About & Binary Information (single-shot, cached)
+// ─────────────────────────────────────────────────────────────
+let aboutLoaded = false;
+async function loadAboutInfo() {
+  if (aboutLoaded) return;
+
+  const cmd = `
+BIN_DIR="${MOD_DIR}/system/bin"
+echo "ARCH:$(uname -m 2>/dev/null || echo unknown)"
+echo "SSHD:$($BIN_DIR/sshd -V 2>&1 || echo unknown)"
+echo "BASH:$($BIN_DIR/bash --version 2>&1 | head -n 1 || echo unknown)"
+echo "TMUX:$($BIN_DIR/tmux -V 2>&1 || echo unknown)"
+echo "HTOP:$($BIN_DIR/htop --version 2>&1 | head -n 1 || echo unknown)"
+echo "NANO:$($BIN_DIR/nano --version 2>&1 | head -n 1 || echo unknown)"
+echo "RSYNC:$($BIN_DIR/rsync --version 2>&1 | head -n 1 || echo unknown)"
+echo "MOD_VER:$(grep -E '^version=' ${MOD_DIR}/module.prop 2>/dev/null | cut -d= -f2)"
+echo "MOD_CODE:$(grep -E '^versionCode=' ${MOD_DIR}/module.prop 2>/dev/null | cut -d= -f2)"
+`.trim();
+
+  const r = await sh(cmd);
+  if (!r.ok || !r.out) return;
+  aboutLoaded = true;
+
+  const data = {};
+  r.out.split('\n').forEach(line => {
+    const idx = line.indexOf(':');
+    if (idx !== -1) {
+      data[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+    }
+  });
+
+  // Extract clean versions
+  let sshdClean = 'OpenSSH';
+  let sshdSub = '';
+  if (data.SSHD) {
+    const m = data.SSHD.match(/OpenSSH_([^\s,]+)/);
+    if (m) {
+      sshdClean = `OpenSSH ${m[1]}`;
+      const ossl = data.SSHD.match(/OpenSSL\s+([^\s]+)/);
+      sshdSub = ossl ? `${m[1]} (${ossl[0]})` : m[1];
+    } else {
+      sshdSub = data.SSHD;
+    }
+  }
+
+  // Update top app bar subtitle dynamically
+  const subEl = document.getElementById('app-subtitle');
+  if (subEl && sshdClean) {
+    subEl.textContent = `${sshdClean} • ssh-ksu`;
+  }
+
+  // Populate About section
+  const setField = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val) el.textContent = val;
+  };
+
+  if (data.MOD_VER) {
+    const code = data.MOD_CODE ? ` (${data.MOD_CODE})` : '';
+    setField('about-mod-ver', `v${data.MOD_VER}${code}`);
+  }
+  setField('about-arch', data.ARCH);
+  setField('about-sshd', sshdSub || data.SSHD);
+
+  if (data.BASH) {
+    const m = data.BASH.match(/version\s+([^\s]+)/);
+    setField('about-bash', m ? m[1] : data.BASH);
+  }
+  if (data.TMUX) {
+    const m = data.TMUX.match(/tmux\s+([^\s]+)/);
+    setField('about-tmux', m ? m[1] : data.TMUX);
+  }
+  if (data.HTOP) {
+    const m = data.HTOP.match(/htop\s+([^\s]+)/);
+    setField('about-htop', m ? m[1] : data.HTOP);
+  }
+  if (data.NANO) {
+    const m = data.NANO.match(/version\s+([^\s]+)/);
+    setField('about-nano', m ? m[1] : data.NANO);
+  }
+  if (data.RSYNC) {
+    const m = data.RSYNC.match(/version\s+([^\s]+)/);
+    setField('about-rsync', m ? m[1] : data.RSYNC);
   }
 }
 
