@@ -1,6 +1,6 @@
 # ssh-ksu: Statically Compiled OpenSSH & Bash for KernelSU & Magisk
 
-A hardened OpenSSH and Bash server module designed specifically for Android devices rooted via KernelSU or Magisk. The project compiles standard Linux networking and terminal utilities statically to run seamlessly within Android's constrained user space with zero shared-library bloat and a native, anti-AI utilitarian WebUI.
+A hardened OpenSSH and Bash server module designed specifically for Android devices rooted via KernelSU or Magisk. The project compiles standard Linux networking and terminal utilities statically to run seamlessly within Android's constrained user space with zero shared-library bloat and a lightweight, utilitarian WebUI.
 
 ---
 
@@ -61,7 +61,7 @@ To resolve this, `ssh-ksu` operates via:
 * **`build/verify.sh`**: Post-build static linkage and ELF architecture validator.
 * **`tests/run_tests.sh`**: Automated QA suite validating scripts, paths, and namespace mounting.
 * **`tests/e2e/server.py`**: Automated headless browser E2E test harness.
-* **`webroot/`**: Anti-AI utilitarian WebUI rendered inside KernelSU and Magisk Manager.
+* **`webroot/`**: Utilitarian WebUI rendered inside KernelSU and Magisk Manager.
 * **`action.sh`**: Interactive start, stop, and status polling script.
 * **`service.sh` / `boot-completed.sh`**: Early boot launcher and late-boot watchdog workers.
 * **`customize.sh` / `uninstall.sh`**: Module installer and uninstaller lifecycle hooks.
