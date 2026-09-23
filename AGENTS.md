@@ -95,14 +95,14 @@ To ensure maximum security, speed, and reproducibility, the project employs a mo
 ## 6. Release & Versioning Policy
 
 ### Version Baseline
-The release version is `1.1.0` with `versionCode=2` inside `module.prop`.
+The release version is `1.1.1` with `versionCode=3` inside `module.prop`.
 
 ### Overwrite Protection
 To enforce strict software configuration rules, `pack.sh` will **never overwrite an existing release ZIP** in the `release/` folder. If a release ZIP for the current version exists, packaging will abort with an error.
 
 ### Automated Release Workflow
 Whenever you implement a bug fix, utility addition, or kernel support upgrade, follow this end-to-end automated publishing flow:
-1. **Bump Versioning**: Update the `version` (e.g. `1.1.0`) and increment `versionCode` inside `module.prop`.
+1. **Bump Versioning**: Update the `version` (e.g. `1.1.1`) and increment `versionCode` inside `module.prop`.
 2. **Run Local Tests**: Execute the QA suite locally to ensure all lints and mounting checks pass:
    ```bash
    bash tests/run_tests.sh
@@ -110,12 +110,12 @@ Whenever you implement a bug fix, utility addition, or kernel support upgrade, f
 3. **Commit Your Changes**: Commit your staged files locally:
    ```bash
    git add .
-   git commit -m "release: bump version to 1.1.0"
+   git commit -m "release: bump version to 1.1.1"
    git push origin main
    ```
 4. **Tag and Push to GitHub**: Apply the semantic versioning tag matching `v*` and push it to kickstart GHA automation:
    ```bash
-   git tag v1.1.0
-   git push origin v1.1.0
+   git tag v1.1.1
+   git push origin v1.1.1
    ```
 5. **Automated GHA Publishing**: The push triggers the GHA compiler runner, which performs an early QA test gating run, builds all target architectures in a single pass, packages the final unified "fat" module ZIP, automatically generates standard changelog release notes, and attaches the flat ZIP archive directly as a GitHub Release asset.

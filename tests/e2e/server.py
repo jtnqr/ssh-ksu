@@ -185,8 +185,8 @@ class E2EHandler(http.server.SimpleHTTPRequestHandler):
                     "HTOP:htop 3.5.3\n"
                     "NANO: GNU nano, version 9.2\n"
                     "RSYNC:rsync  version 3.5.0  protocol version 32\n"
-                    "MOD_VER:1.1.0\n"
-                    "MOD_CODE:2\n"
+                    "MOD_VER:1.1.1\n"
+                    "MOD_CODE:3\n"
                 )
                 res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
             else:

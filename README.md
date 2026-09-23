@@ -76,13 +76,13 @@ To bundle the compiled binaries and module configurations into a flashable ZIP:
 ```bash
 bash pack.sh --arch all
 ```
-This produces `release/ssh-ksu-1.1.0.zip` along with its SHA-256 checksum.
+This produces `release/ssh-ksu-1.1.1.zip` along with its SHA-256 checksum.
 
 ### 2. Flash the Module
 1. Copy the generated ZIP archive to your Android device.
 2. Open **KernelSU Manager** or **Magisk Manager**.
 3. Select **Modules** &rarr; **Install from storage**.
-4. Select `ssh-ksu-1.1.0.zip`, wait for installation to complete, and reboot.
+4. Select `ssh-ksu-1.1.1.zip`, wait for installation to complete, and reboot.
 
 ### 3. Authorize SSH Public Key
 Password authentication is disabled for security. Inject your public key into the user home directory:

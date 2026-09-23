@@ -203,8 +203,8 @@ async function updateModuleProp(status, port) {
   if (!content.trim() || !content.includes('id=')) {
     content = `id=ssh-ksu
 name=SSH-KSU
-version=1.1.0
-versionCode=2
+version=1.1.1
+versionCode=3
 author=Jtnqr
 description=${desc}
 updateJson=https://raw.githubusercontent.com/jtnqr/ssh-ksu/main/update.json`;
