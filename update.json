@@ -2,5 +2,5 @@
   "version": "1.1.1",
   "versionCode": 3,
   "zipUrl": "https://github.com/jtnqr/ssh-ksu/releases/download/v1.1.1/ssh-ksu-1.1.1.zip",
-  "changelog": "https://raw.githubusercontent.com/jtnqr/ssh-ksu/main/README.md"
+  "changelog": "https://raw.githubusercontent.com/jtnqr/ssh-ksu/main/CHANGELOG.md"
 }
