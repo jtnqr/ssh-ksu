@@ -156,19 +156,21 @@ setup_toolchain() {
 # ---------------------------------------------------------------------------
 # ⑦ Fetch all source tarballs up-front
 # ---------------------------------------------------------------------------
-echo "=== Fetching sources ==="
-fetch "$OPENSSL_URL" "$SRC_DIR/openssl-${OPENSSL_VERSION}.tar.gz"
-fetch "$OPENSSH_URL" "$SRC_DIR/openssh-${OPENSSH_VERSION}.tar.gz"
-fetch "$RSYNC_URL"   "$SRC_DIR/rsync-${RSYNC_VERSION}.tar.gz"
-fetch "$ZLIB_URL"    "$SRC_DIR/zlib-${ZLIB_VERSION}.tar.gz"
-fetch "$POPT_URL"    "$SRC_DIR/popt-${POPT_VERSION}.tar.gz"
-fetch "$NCURSES_URL" "$SRC_DIR/ncurses-${NCURSES_VERSION}.tar.gz"
-fetch "$BASH_URL"    "$SRC_DIR/bash-${BASH_VERSION}.tar.gz"
-fetch "$LIBEVENT_URL" "$SRC_DIR/libevent-${LIBEVENT_VERSION}.tar.gz"
-fetch "$TMUX_URL"     "$SRC_DIR/tmux-${TMUX_VERSION}.tar.gz"
-fetch "$HTOP_URL"     "$SRC_DIR/htop-${HTOP_VERSION}.tar.xz"
-fetch "$NANO_URL"     "$SRC_DIR/nano-${NANO_VERSION}.tar.gz"
-echo ""
+fetch_sources() {
+	echo "=== Fetching sources ==="
+	fetch "$OPENSSL_URL" "$SRC_DIR/openssl-${OPENSSL_VERSION}.tar.gz"
+	fetch "$OPENSSH_URL" "$SRC_DIR/openssh-${OPENSSH_VERSION}.tar.gz"
+	fetch "$RSYNC_URL"   "$SRC_DIR/rsync-${RSYNC_VERSION}.tar.gz"
+	fetch "$ZLIB_URL"    "$SRC_DIR/zlib-${ZLIB_VERSION}.tar.gz"
+	fetch "$POPT_URL"    "$SRC_DIR/popt-${POPT_VERSION}.tar.gz"
+	fetch "$NCURSES_URL" "$SRC_DIR/ncurses-${NCURSES_VERSION}.tar.gz"
+	fetch "$BASH_URL"    "$SRC_DIR/bash-${BASH_VERSION}.tar.gz"
+	fetch "$LIBEVENT_URL" "$SRC_DIR/libevent-${LIBEVENT_VERSION}.tar.gz"
+	fetch "$TMUX_URL"     "$SRC_DIR/tmux-${TMUX_VERSION}.tar.gz"
+	fetch "$HTOP_URL"     "$SRC_DIR/htop-${HTOP_VERSION}.tar.xz"
+	fetch "$NANO_URL"     "$SRC_DIR/nano-${NANO_VERSION}.tar.gz"
+	echo ""
+}
 
 # =============================================================================
 #  BUILD FUNCTION — called once per ABI
@@ -830,9 +832,32 @@ build_tmux() {
 # =============================================================================
 ABIS=()
 case "${1:-all}" in
-all) ABIS=(arm64-v8a x86_64) ;;
-arm64) ABIS=(arm64-v8a) ;;
-x86_64) ABIS=(x86_64) ;;
+all)
+    fetch_sources
+    ABIS=(arm64-v8a x86_64)
+    ;;
+arm64|arm64-v8a)
+    fetch_sources
+    ABIS=(arm64-v8a)
+    ;;
+x86_64)
+    fetch_sources
+    ABIS=(x86_64)
+    ;;
+fetch-sources)
+    fetch_sources
+    exit 0
+    ;;
+fetch-toolchain)
+    ABI="${2:-arm64-v8a}"
+    setup_toolchain "$ABI"
+    exit 0
+    ;;
+compile)
+    ABI="${2:-arm64-v8a}"
+    build_for_abi "$ABI"
+    exit 0
+    ;;
 clean)
     log "Cleaning build artefacts..."
     [ -d "$BUILD_DIR" ] && chmod -R u+w "$BUILD_DIR" 2>/dev/null || true
@@ -853,7 +878,7 @@ cleanall)
     exit 0
     ;;
 *)
-    echo "Usage: $0 {all|arm64|x86_64|clean|cleanall}"
+    echo "Usage: $0 {all|arm64|x86_64|fetch-sources|fetch-toolchain <abi>|compile <abi>|clean|cleanall}"
     exit 1
     ;;
 esac

@@ -3,8 +3,8 @@ name: Build & Release ssh-ksu
 on:
   push:
     tags:
-      - 'v*'           # triggers on: git tag v1.2.0 && git push --tags
-  workflow_dispatch:   # also allows manual "Run workflow" button in GitHub UI
+      - 'v*'           # triggers on: git tag v1.2.0 && git push origin v1.2.0
+  workflow_dispatch:   # allows manual "Run workflow" button in GitHub UI
     inputs:
       version_override:
         description: 'Version override (e.g. v1.2.0-beta). Leave blank to use module.prop.'
@@ -12,18 +12,33 @@ on:
         default: ''
 
 jobs:
-  build:
-    name: Cross-compile (arm64-v8a + x86_64)
+  # ── 1. Fast QA Lint & Mount Simulation (Fail fast in ~20s) ──────────────────
+  test:
+    name: QA Test Suite
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Install system build deps ─────────────────────────────────────
+      - name: Run QA test suite
+        run: |
+          chmod +x tests/run_tests.sh
+          sudo bash tests/run_tests.sh
+
+  # ── 2. Modular Parallel Cross-Compilation (Matrix: arm64 & x86_64) ──────────
+  compile:
+    name: Compile (${{ matrix.abi }})
+    needs: test
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, x86_64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -31,61 +46,94 @@ jobs:
             build-essential make autoconf automake libtool \
             perl curl xz-utils unzip zip patch file binutils ccache
 
-      # ── 3. Run QA test suite (Fail early to save build minutes) ──────────
-      - name: Run QA test suite
-        run: |
-          chmod +x tests/run_tests.sh
-          sudo bash tests/run_tests.sh
-
-      # ── 4. Cache musl-cross toolchains (saves ~160MB download per run) ────
-      - name: Cache musl-cross toolchains
-        id: cache-toolchains
+      - name: Cache musl-cross toolchain
         uses: actions/cache@v4
         with:
           path: build/.build/toolchains
-          key: musl-toolchains-${{ hashFiles('build/build.sh') }}
+          key: musl-toolchains-${{ matrix.abi }}-${{ hashFiles('build/build.sh') }}
 
-      # ── 5. Cache source tarballs (avoids re-downloading source code) ──────
       - name: Cache source tarballs
         uses: actions/cache@v4
         with:
           path: build/.build/src
           key: sources-${{ hashFiles('build/build.sh') }}
 
-      # ── 6. Cache compiler objects (ccache for lightning fast compiles) ────
       - name: Cache compiler objects (ccache)
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
-          key: ccache-${{ runner.os }}-${{ hashFiles('build/build.sh') }}-${{ github.run_id }}
+          key: ccache-${{ runner.os }}-${{ matrix.abi }}-${{ hashFiles('build/build.sh') }}-${{ github.run_id }}
           restore-keys: |
-            ccache-${{ runner.os }}-${{ hashFiles('build/build.sh') }}-
+            ccache-${{ runner.os }}-${{ matrix.abi }}-${{ hashFiles('build/build.sh') }}-
 
-      # ── 7. Build ─────────────────────────────────────────────────────────
-      - name: Build all ABIs
+      - name: Fetch upstream sources
         run: |
           chmod +x build/build.sh
-          bash build/build.sh all
+          bash build/build.sh fetch-sources
 
-      # ── 8. Verify ────────────────────────────────────────────────────────
-      - name: Verify binaries
+      - name: Setup musl toolchain
+        run: |
+          bash build/build.sh fetch-toolchain ${{ matrix.abi }}
+
+      - name: Compile ${{ matrix.abi }} binaries
+        run: |
+          bash build/build.sh compile ${{ matrix.abi }}
+
+      - name: Verify ${{ matrix.abi }} binaries
         run: |
           chmod +x build/verify.sh
+          bash build/verify.sh ${{ matrix.abi }}
+
+      - name: Upload ${{ matrix.abi }} binary artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.abi }}
+          path: build/out/${{ matrix.abi }}
+          retention-days: 1
+
+  # ── 3. Assemble Universal Package & Release ─────────────────────────────────
+  release:
+    name: Package & Release
+    needs: [test, compile]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download arm64-v8a binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-arm64-v8a
+          path: build/out/arm64-v8a
+
+      - name: Download x86_64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-x86_64
+          path: build/out/x86_64
+
+      - name: Set binary permissions
+        run: |
+          chmod -R +x build/out
+          chmod +x build/verify.sh pack.sh
+
+      - name: Verify all binaries
+        run: |
           bash build/verify.sh all
 
-      # ── 9. Pack module ZIP ───────────────────────────────────────────────
       - name: Pack module ZIP
         env:
           VERSION_OVERRIDE: ${{ github.event.inputs.version_override }}
         run: |
-          chmod +x pack.sh
           if [ -n "$VERSION_OVERRIDE" ]; then
             bash pack.sh --version "$VERSION_OVERRIDE" --arch all
           else
             bash pack.sh --arch all
           fi
 
-      # ── 10. Read release metadata ────────────────────────────────────────
       - name: Read release metadata
         id: meta
         env:
@@ -97,39 +145,22 @@ jobs:
           fi
           MOD_ID="$(grep '^id=' module.prop | cut -d= -f2)"
           ZIP_NAME="${MOD_ID}-${MOD_VERSION}.zip"
-          echo "version=${MOD_VERSION}"       >> "$GITHUB_OUTPUT"
-          echo "zip_name=${ZIP_NAME}"         >> "$GITHUB_OUTPUT"
+          echo "version=${MOD_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${ZIP_NAME}"   >> "$GITHUB_OUTPUT"
 
-      # ── 11. Upload ZIP as workflow artifact (always available) ────────────
       - name: Upload module ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ssh-ksu
+          name: ssh-ksu-universal
           path: release/${{ steps.meta.outputs.zip_name }}
           retention-days: 90
 
-      # ── 12. Create GitHub Release (only on version tags) ────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: "ssh-ksu v${{ steps.meta.outputs.version }}"
-          body: |
-            ## ssh-ksu v${{ steps.meta.outputs.version }}
-
-            Minimalist OpenSSH + rsync server module for KernelSU/Magisk.
-            Runs on Port 22. All configuration lives in `/data/adb/ssh/`.
-
-            ### Usage
-            1. Flash via **KernelSU Manager** or **Magisk Manager**
-            2. Reboot
-            3. Add your public key:
-               ```sh
-               adb push ~/.ssh/id_ed25519.pub /data/adb/ssh/authorized_keys
-               adb shell chmod 600 /data/adb/ssh/authorized_keys
-               ```
-            4. Connect: `ssh root@<device-ip> -p 22`
           files: release/${{ steps.meta.outputs.zip_name }}
           generate_release_notes: true
           draft: false
