@@ -1,5 +1,8 @@
 # ssh-ksu: Statically Compiled OpenSSH & Bash for KernelSU & Magisk
 
+[![GitHub Release](https://img.shields.io/github/v/release/jtnqr/ssh-ksu?color=2563eb&label=latest)](https://github.com/jtnqr/ssh-ksu/releases/latest)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+
 A hardened OpenSSH and Bash server module designed specifically for Android devices rooted via KernelSU or Magisk. The project compiles standard Linux networking and terminal utilities statically to run seamlessly within Android's constrained user space with zero shared-library bloat and a lightweight, utilitarian WebUI.
 
 ---
@@ -71,18 +74,20 @@ To resolve this, `ssh-ksu` operates via:
 
 ## Deployment Guide
 
-### 1. Build the Release Package
-To bundle the compiled binaries and module configurations into a flashable ZIP:
+### 1. Obtain or Build the Release Package
+Download the latest pre-compiled universal archive directly from [GitHub Releases](https://github.com/jtnqr/ssh-ksu/releases/latest).
+
+Alternatively, build the module locally from source:
 ```bash
 bash pack.sh --arch all
 ```
-This produces `release/ssh-ksu-1.1.1.zip` along with its SHA-256 checksum.
+This produces `release/ssh-ksu-<version>.zip` along with its SHA-256 checksum.
 
 ### 2. Flash the Module
-1. Copy the generated ZIP archive to your Android device.
+1. Copy the ZIP archive to your Android device.
 2. Open **KernelSU Manager** or **Magisk Manager**.
 3. Select **Modules** &rarr; **Install from storage**.
-4. Select `ssh-ksu-1.1.1.zip`, wait for installation to complete, and reboot.
+4. Select the downloaded ZIP (`ssh-ksu-*.zip`), wait for installation to complete, and reboot.
 
 ### 3. Authorize SSH Public Key
 Password authentication is disabled for security. Inject your public key into the user home directory:

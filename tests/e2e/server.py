@@ -177,6 +177,17 @@ class E2EHandler(http.server.SimpleHTTPRequestHandler):
                 mock_out = "ESTAB 0 0 192.0.2.105:22 192.0.2.50:54321\n"
                 res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
             elif "BIN_DIR" in cmd or "sshd -V" in cmd:
+                mod_ver = "1.0.0"
+                mod_code = "1"
+                prop_path = os.path.join(REPO_ROOT, "module.prop")
+                if os.path.exists(prop_path):
+                    with open(prop_path, "r", encoding="utf-8") as pf:
+                        for pline in pf:
+                            if pline.startswith("version="):
+                                mod_ver = pline.strip().split("=", 1)[1]
+                            elif pline.startswith("versionCode="):
+                                mod_code = pline.strip().split("=", 1)[1]
+
                 mock_out = (
                     "ARCH:aarch64\n"
                     "SSHD:OpenSSH_10.5p1, OpenSSL 4.0.2 12 Sep 2026\n"
@@ -185,8 +196,8 @@ class E2EHandler(http.server.SimpleHTTPRequestHandler):
                     "HTOP:htop 3.5.3\n"
                     "NANO: GNU nano, version 9.2\n"
                     "RSYNC:rsync  version 3.5.0  protocol version 32\n"
-                    "MOD_VER:1.1.1\n"
-                    "MOD_CODE:3\n"
+                    f"MOD_VER:{mod_ver}\n"
+                    f"MOD_CODE:{mod_code}\n"
                 )
                 res = subprocess.CompletedProcess(args=cmd, returncode=0, stdout=mock_out, stderr="")
             else:

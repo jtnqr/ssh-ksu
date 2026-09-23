@@ -198,20 +198,10 @@ async function updateModuleProp(status, port) {
 
   const checkR = await sh(`cat ${MOD_DIR}/module.prop 2>/dev/null`);
   let content = checkR.out || '';
+  if (!content.trim() || !content.includes('description=')) return;
 
-  // If empty or missing, rebuild module.prop with standard structure
-  if (!content.trim() || !content.includes('id=')) {
-    content = `id=ssh-ksu
-name=SSH-KSU
-version=1.1.1
-versionCode=3
-author=Jtnqr
-description=${desc}
-updateJson=https://raw.githubusercontent.com/jtnqr/ssh-ksu/main/update.json`;
-  } else {
-    // Replace the description line safely in JS
-    content = content.replace(/^description=.*/m, `description=${desc}`);
-  }
+  // Replace the description line safely in JS
+  content = content.replace(/^description=.*/m, `description=${desc}`);
 
   // Write content safely using base64 stream to prevent shell metacharacter expansion
   const b64 = toBase64(content);

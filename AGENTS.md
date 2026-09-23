@@ -52,6 +52,8 @@ To maintain high security and separate runtime configuration from user state:
 | **`customize.sh`** | Installation and environment setup. | Handles permissions, overlays, directories creation (`/data/adb/ssh/home`), data migration, and binary unpacking. |
 | **`tests/run_tests.sh`** | QA verification test suite. | Performs shell syntax lints, path alignments, and simulates namespace mounting in an unprivileged user space. |
 | **`pack.sh`** | Module release bundler. | Validates static binaries, runs static verification, stages files, and builds the flashable ZIP. |
+| **`update.json`** | Remote OTA update manifest. | Live metadata manifest checked by KernelSU/Magisk Manager (`version`, `versionCode`, `zipUrl`, `changelog`). |
+| **`CHANGELOG.md`** | User-facing release notes. | Rendered inside the KernelSU/Magisk Manager update confirmation modal via `update.json`. |
 
 ---
 
@@ -95,27 +97,30 @@ To ensure maximum security, speed, and reproducibility, the project employs a mo
 ## 6. Release & Versioning Policy
 
 ### Version Baseline
-The release version is `1.1.1` with `versionCode=3` inside `module.prop`.
+The canonical module version (`version`) and incremental build code (`versionCode`) are defined solely inside `module.prop`. Never hardcode static version numbers across documentation or developer guidelines.
 
 ### Overwrite Protection
 To enforce strict software configuration rules, `pack.sh` will **never overwrite an existing release ZIP** in the `release/` folder. If a release ZIP for the current version exists, packaging will abort with an error.
 
 ### Automated Release Workflow
 Whenever you implement a bug fix, utility addition, or kernel support upgrade, follow this end-to-end automated publishing flow:
-1. **Bump Versioning**: Update the `version` (e.g. `1.1.1`) and increment `versionCode` inside `module.prop`.
-2. **Run Local Tests**: Execute the QA suite locally to ensure all lints and mounting checks pass:
+1. **Bump Versioning**: Update `version` (e.g. `1.2.0`) and increment `versionCode` inside `module.prop`.
+2. **Update OTA Manifest**: Align `version`, `versionCode`, and `zipUrl` in `update.json` to match `module.prop`. Add release notes to `CHANGELOG.md`.
+3. **Run Local Tests**: Execute the QA suite locally to ensure all lints and mounting checks pass:
    ```bash
    bash tests/run_tests.sh
    ```
-3. **Commit Your Changes**: Commit your staged files locally:
+4. **Commit Your Changes**:
    ```bash
+   VERSION=$(grep '^version=' module.prop | cut -d= -f2)
    git add .
-   git commit -m "release: bump version to 1.1.1"
+   git commit -m "release: bump version to $VERSION"
    git push origin main
    ```
-4. **Tag and Push to GitHub**: Apply the semantic versioning tag matching `v*` and push it to kickstart GHA automation:
+5. **Tag and Push to GitHub**: Apply the semantic versioning tag matching `v*` and push it to trigger the automated CI/CD pipeline:
    ```bash
-   git tag v1.1.1
-   git push origin v1.1.1
+   VERSION=$(grep '^version=' module.prop | cut -d= -f2)
+   git tag "v$VERSION"
+   git push origin "v$VERSION"
    ```
-5. **Automated GHA Publishing**: The push triggers the GHA compiler runner, which performs an early QA test gating run, builds all target architectures in a single pass, packages the final unified "fat" module ZIP, automatically generates standard changelog release notes, and attaches the flat ZIP archive directly as a GitHub Release asset.
+6. **Automated GHA Publishing**: The push triggers the GitHub Actions workflow, which runs QA gating, executes parallel cross-compilation matrix jobs (`arm64-v8a` and `x86_64`), verifies static binaries, packages the universal module ZIP, and attaches it as a GitHub Release asset.
