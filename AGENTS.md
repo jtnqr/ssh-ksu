@@ -6,12 +6,13 @@ Welcome! This document provides a complete technical map of the `ssh-ksu` Kernel
 
 ## 1. Architecture Overview
 
-`ssh-ksu` is a hardened OpenSSH (v10.5p1) and Bash (v5.3) server module designed specifically for Android devices utilizing KernelSU or Magisk. Because Android deviates significantly from traditional POSIX environments, this module implements custom system-level workarounds to provide a seamless, secure, and robust interactive shell experience.
+`ssh-ksu` is a hardened OpenSSH and Bash server module designed specifically for Android devices utilizing KernelSU or Magisk. Because Android deviates significantly from traditional POSIX environments, this module implements custom system-level workarounds to provide a seamless, secure, and robust interactive shell experience.
 
 ### Technical Stack
-* **SSHD**: OpenSSH 10.5p1 / OpenSSL 4.0.2 (statically compiled for `arm64-v8a` and `x86_64`).
-* **Shell**: Bash 5.3 (statically compiled with full `ncurses` and `readline` support).
-* **Additional Utilities**: GNU Nano (v9.2), htop (v3.5.3), rsync (v3.5.0), and tmux (v3.7c) with `libevent` (v2.1.13-stable).
+* **SSHD**: OpenSSH / OpenSSL (statically compiled for `arm64-v8a` and `x86_64`).
+* **Shell**: GNU Bash (statically compiled with full `ncurses` and `readline` support).
+* **Additional Utilities**: GNU Nano, htop, rsync, and tmux with `libevent`.
+* **Toolchain Definition**: Exact upstream package versions are declared in `build/build.sh` and dynamically queried on-device via the WebUI.
 * **Compilation Environment**: Dedicated, secure `ubuntu:24.04` container utilizing `musl-cross` toolchains dynamically fetched from GitHub. Android NDK is completely pruned to avoid unnecessary bloat.
 * **Environment Sourcing**: Custom interactive login configurations hook via `etc/profile` sourcing `~/.bashrc`.
 * **Verification**: Custom isolated user namespace mounting simulator (`tests/run_tests.sh`).

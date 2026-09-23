@@ -36,13 +36,15 @@ To resolve this, `ssh-ksu` operates via:
 
 ## Core Integrated Utilities
 
-* **OpenSSH (v10.5p1)**: Initiates the `sshd` daemon inside the isolated mount namespace, enforcing public-key-only authentication by default. Cryptographically secure Ed25519 system host keys are generated automatically upon installation.
-* **OpenSSL (v4.0.2)**: Modern static cryptography backend powering OpenSSH with hardened cipher suites.
-* **rsync (v3.5.0)**: Statically linked with musl to allow robust remote file synchronization without requiring local ADB sessions.
-* **GNU Bash (v5.3)**: Standardized POSIX shell replacing Android's minimal `/system/bin/sh`, providing predictable command execution and full readline support.
-* **tmux (v3.7c)**: Statically linked with `libevent` (v2.1.13-stable) for persistent terminal multiplexing surviving network disconnects.
-* **htop (v3.5.3)**: Statically compiled system resource monitor and thread viewer.
-* **GNU Nano (v9.2)**: Lightweight console editor with built-in syntax highlighting for on-device config edits.
+All binaries are statically compiled against `musl libc` with zero external dependencies. Exact toolchain versions are declared in `build/build.sh` and reported live on-device in the WebUI's **About & Binaries** card.
+
+* **OpenSSH**: Initiates the `sshd` daemon inside the isolated mount namespace, enforcing public-key-only authentication by default. Cryptographically secure Ed25519 system host keys are generated automatically upon installation.
+* **OpenSSL**: Modern static cryptography backend powering OpenSSH with hardened cipher suites.
+* **rsync**: Statically linked to allow robust remote file synchronization without requiring local ADB sessions.
+* **GNU Bash**: Standardized POSIX shell replacing Android's minimal `/system/bin/sh`, providing predictable command execution and full readline support.
+* **tmux**: Statically linked with `libevent` for persistent terminal multiplexing surviving network disconnects.
+* **htop**: Statically compiled system resource monitor and thread viewer.
+* **GNU Nano**: Lightweight console editor with built-in syntax highlighting for on-device config edits.
 
 ---
 
